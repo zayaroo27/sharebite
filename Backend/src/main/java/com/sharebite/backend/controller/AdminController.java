@@ -1,6 +1,7 @@
 package com.sharebite.backend.controller;
 
 import com.sharebite.backend.dto.AdminStatsResponse;
+import com.sharebite.backend.dto.AdminReportResponse;
 import com.sharebite.backend.dto.AdminUserResponse;
 import com.sharebite.backend.service.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,5 +48,23 @@ public class AdminController {
     public ResponseEntity<AdminStatsResponse> getStats() {
         AdminStatsResponse stats = adminService.getStats();
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/reports")
+    public ResponseEntity<List<AdminReportResponse>> getOpenReports() {
+        List<AdminReportResponse> reports = adminService.getOpenReports();
+        return ResponseEntity.ok(reports);
+    }
+
+    @PatchMapping("/reports/{id}/resolve")
+    public ResponseEntity<AdminReportResponse> resolveReport(@PathVariable UUID id) {
+        AdminReportResponse response = adminService.resolveReport(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/reports/{id}/dismiss")
+    public ResponseEntity<AdminReportResponse> dismissReport(@PathVariable UUID id) {
+        AdminReportResponse response = adminService.dismissReport(id);
+        return ResponseEntity.ok(response);
     }
 }

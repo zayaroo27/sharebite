@@ -2,6 +2,7 @@ package com.sharebite.backend.dto;
 
 public record AdminStatsResponse(
     long totalUsers,
+    long activeUsers,
     long totalListings,
     long availableListings,
     long expiredListings,

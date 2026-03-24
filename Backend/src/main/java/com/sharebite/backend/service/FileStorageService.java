@@ -44,8 +44,11 @@ public class FileStorageService {
         }
 
         // Generate unique filename
-        String originalFilename = file.getOriginalFilename();
-        String extension = originalFilename != null ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
+        String extension = switch (contentType) {
+            case "image/png" -> ".png";
+            case "image/jpg", "image/jpeg" -> ".jpg";
+            default -> throw new BadRequestException("Only JPG, JPEG, and PNG images are allowed");
+        };
         String filename = UUID.randomUUID().toString() + extension;
 
         try {

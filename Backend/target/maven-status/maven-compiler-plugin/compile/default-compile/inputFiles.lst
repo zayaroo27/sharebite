@@ -1,10 +1,13 @@
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/AuthService.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AdminReportResponse.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/security/JwtUtil.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/MessageController.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ReportType.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/FoodListingController.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/repository/CategoryRepository.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/ShareBiteApplication.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/CategoryController.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/ReportService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AdminStatsResponse.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/FoodListingService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/FoodListingResponse.java
@@ -12,6 +15,7 @@
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/exception/BadRequestException.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/ListingRequestController.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/CategoryResponse.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/ReportCreateRequest.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/Category.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/exception/ConflictException.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/exception/ApiErrorResponse.java
@@ -22,8 +26,10 @@
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/repository/NotificationRepository.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AdminUserResponse.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/repository/MessageRepository.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/ReportController.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/MessageSendRequest.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/NotificationType.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/Report.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/security/JwtAuthenticationFilter.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/RegisterRequest.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/NotificationService.java
@@ -49,7 +55,10 @@
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/NotificationResponse.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/FileStorageService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/RequestStatus.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ReportStatus.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/ProfileService.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/repository/ReportRepository.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/config/ReportSchemaRepair.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/Role.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/AdminService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AuthResponse.java

@@ -1,7 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   fetchNotifications,
-  fetchUnreadCount,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../services/notificationService.js'
@@ -10,33 +9,66 @@ import { AuthContext } from './AuthContext.jsx'
 export const NotificationsContext = createContext(null)
 
 const POLL_INTERVAL_MS = 10000
+const MESSAGE_TYPE = 'NEW_MESSAGE'
+
+function normalizeNotification(notification) {
+  if (!notification) return null
+
+  const type = String(notification.type || '').toUpperCase()
+
+  return {
+    ...notification,
+    type,
+    read: Boolean(notification.read ?? notification.isRead),
+    date: notification.date ?? notification.createdAt ?? null,
+  }
+}
+
+function normalizeNotificationsList(data) {
+  const list = Array.isArray(data) ? data : data?.items ?? []
+  return list.map(normalizeNotification).filter(Boolean)
+}
 
 export function NotificationsProvider({ children }) {
   const [notifications, setNotifications] = useState([])
-  const [unreadCount, setUnreadCount] = useState(0)
   const { isAuthenticated } = useContext(AuthContext)
+
+  const replaceNotifications = useCallback((nextValue) => {
+    if (typeof nextValue === 'function') {
+      setNotifications((prev) => normalizeNotificationsList(nextValue(prev)))
+      return
+    }
+
+    setNotifications(normalizeNotificationsList(nextValue))
+  }, [])
+
+  const refreshNotifications = useCallback(async () => {
+    const data = await fetchNotifications()
+    const normalized = normalizeNotificationsList(data)
+    setNotifications(normalized)
+    return normalized
+  }, [])
 
   useEffect(() => {
     if (!isAuthenticated) {
       setNotifications([])
-      setUnreadCount(0)
       return undefined
     }
 
     let active = true
 
-    const loadUnreadCount = async () => {
+    const loadNotifications = async () => {
       try {
-        const count = await fetchUnreadCount()
+        const data = await fetchNotifications()
         if (!active) return
-        setUnreadCount(count)
+        setNotifications(normalizeNotificationsList(data))
       } catch {
         // Keep previous value if fetch fails
       }
     }
 
-    loadUnreadCount()
-    const intervalId = window.setInterval(loadUnreadCount, POLL_INTERVAL_MS)
+    loadNotifications()
+    const intervalId = window.setInterval(loadNotifications, POLL_INTERVAL_MS)
 
     return () => {
       active = false
@@ -44,10 +76,20 @@ export function NotificationsProvider({ children }) {
     }
   }, [isAuthenticated])
 
-  useEffect(() => {
-    if (notifications.length === 0) return
-    setUnreadCount(notifications.filter((n) => !n.read).length)
-  }, [notifications])
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  )
+
+  const unreadMessageCount = useMemo(
+    () => notifications.filter((n) => !n.read && n.type === MESSAGE_TYPE).length,
+    [notifications],
+  )
+
+  const unreadAlertCount = useMemo(
+    () => notifications.filter((n) => !n.read && n.type !== MESSAGE_TYPE).length,
+    [notifications],
+  )
 
   const markOneAsRead = async (id) => {
     await markNotificationRead(id)
@@ -56,13 +98,11 @@ export function NotificationsProvider({ children }) {
         notification.id === id ? { ...notification, read: true } : notification,
       ),
     )
-    setUnreadCount((prev) => Math.max(0, prev - 1))
   }
 
   const markAllAsRead = async () => {
     await markAllNotificationsRead()
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    setUnreadCount(0)
   }
 
   const markMessageNotificationsAsRead = async () => {
@@ -71,7 +111,7 @@ export function NotificationsProvider({ children }) {
     if (current.length === 0) {
       try {
         const fetched = await fetchNotifications()
-        current = Array.isArray(fetched) ? fetched : fetched?.items ?? []
+        current = normalizeNotificationsList(fetched)
         setNotifications(current)
       } catch {
         return
@@ -79,7 +119,7 @@ export function NotificationsProvider({ children }) {
     }
 
     const toMark = current.filter(
-      (n) => !n.read && String(n.type || '').toUpperCase() === 'NEW_MESSAGE',
+      (n) => !n.read && n.type === MESSAGE_TYPE,
     )
 
     if (toMark.length === 0) return
@@ -88,7 +128,6 @@ export function NotificationsProvider({ children }) {
     setNotifications((prev) =>
       prev.map((n) => (ids.has(n.id) ? { ...n, read: true } : n)),
     )
-    setUnreadCount((prev) => Math.max(0, prev - toMark.length))
 
     await Promise.all(
       toMark.map((n) => markNotificationRead(n.id).catch(() => null)),
@@ -98,13 +137,23 @@ export function NotificationsProvider({ children }) {
   const value = useMemo(
     () => ({
       notifications,
-      setNotifications,
+      setNotifications: replaceNotifications,
+      refreshNotifications,
       unreadCount,
+      unreadMessageCount,
+      unreadAlertCount,
       markOneAsRead,
       markAllAsRead,
       markMessageNotificationsAsRead,
     }),
-    [notifications, unreadCount],
+    [
+      notifications,
+      replaceNotifications,
+      refreshNotifications,
+      unreadCount,
+      unreadMessageCount,
+      unreadAlertCount,
+    ],
   )
 
   return (

@@ -146,6 +146,29 @@
   color: #2b3440;
 }
 
+.messages-main__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.messages-main__report-btn {
+  border: 1px solid rgba(231, 73, 102, 0.4);
+  background: #fff5f7;
+  color: #e74966;
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.58rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.messages-main__report-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .messages-main__meta {
   margin-top: 0.35rem;
   display: flex;

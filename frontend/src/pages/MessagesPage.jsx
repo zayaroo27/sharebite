@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { fetchConversation, sendMessage } from '../services/messageService.js'
 import { fetchDonorDashboard } from '../services/donorService.js'
 import { fetchRecipientDashboard } from '../services/recipientService.js'
+import { reportRequest } from '../services/reportService.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useNotifications } from '../hooks/useNotifications.js'
 import '../styles/messages.css'
@@ -46,6 +47,7 @@ function MessagesPage() {
   const [loadingConversations, setLoadingConversations] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
+  const [reportingConversation, setReportingConversation] = useState(false)
   const [error, setError] = useState('')
   const [conversationError, setConversationError] = useState('')
 
@@ -228,6 +230,26 @@ function MessagesPage() {
     user?.role === 'DONOR' ? 'RECIPIENT' : 'DONOR'
   )
 
+  const handleReportConversation = async () => {
+    if (!selectedConversation?.requestId) return
+    const reason = window.prompt('Why are you reporting this conversation?')
+    if (reason === null) return
+    const details = window.prompt('Additional details (optional):')
+
+    setReportingConversation(true)
+    try {
+      await reportRequest(selectedConversation.requestId, reason, details || '')
+      // eslint-disable-next-line no-alert
+      alert('Conversation reported. Admin will review it.')
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Unable to submit report right now.'
+      // eslint-disable-next-line no-alert
+      alert(message)
+    } finally {
+      setReportingConversation(false)
+    }
+  }
+
   return (
     <section className="messages-workspace">
       <aside className="messages-sidebar card">
@@ -300,7 +322,17 @@ function MessagesPage() {
         ) : (
           <>
             <header className="messages-main__header">
-              <h2>{selectedConversation.listingTitle || 'Conversation'}</h2>
+              <div className="messages-main__header-row">
+                <h2>{selectedConversation.listingTitle || 'Conversation'}</h2>
+                <button
+                  type="button"
+                  className="messages-main__report-btn"
+                  onClick={handleReportConversation}
+                  disabled={reportingConversation}
+                >
+                  {reportingConversation ? 'Reporting...' : 'Report conversation'}
+                </button>
+              </div>
               <div className="messages-main__meta">
                 <span>{getParticipantName(selectedConversation) || 'Unknown participant'}</span>
                 <span className="conversation-badge conversation-badge--role">{getParticipantRole()}</span>

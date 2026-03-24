@@ -1,16 +1,17 @@
 import api from './api.js'
 
 export async function fetchAdminDashboard() {
-  const [usersResponse, statsResponse, categoriesResponse] = await Promise.all([
+  const [usersResponse, statsResponse, categoriesResponse, reportsResponse] = await Promise.all([
     api.get('/admin/users'),
     api.get('/admin/stats'),
     api.get('/categories'),
+    api.get('/admin/reports'),
   ])
 
   return {
     users: usersResponse.data ?? [],
     categories: categoriesResponse.data ?? [],
-    listingsForModeration: [],
+    reports: reportsResponse.data ?? [],
     stats: statsResponse.data ?? null,
   }
 }
@@ -42,5 +43,15 @@ export async function updateCategory(categoryId, payload) {
 
 export async function deleteCategory(categoryId) {
   const response = await api.delete(`/categories/${categoryId}`)
+  return response.data
+}
+
+export async function resolveReport(reportId) {
+  const response = await api.patch(`/admin/reports/${reportId}/resolve`)
+  return response.data
+}
+
+export async function dismissReport(reportId) {
+  const response = await api.patch(`/admin/reports/${reportId}/dismiss`)
   return response.data
 }

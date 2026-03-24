@@ -117,14 +117,6 @@ function RegisterPage() {
               >
                 Recipient
               </Button>
-              <Button
-                type="button"
-                variant={form.role === 'ADMIN' ? 'primary' : 'outline'}
-                onClick={() => setForm((prev) => ({ ...prev, role: 'ADMIN' }))}
-                aria-pressed={form.role === 'ADMIN'}
-              >
-                Admin
-              </Button>
             </div>
             {errors.role && <p className="form-error">{errors.role}</p>}
           </div>

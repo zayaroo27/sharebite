@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchListings } from '../services/listingService.js'
 import { LISTING_PLACEHOLDER_IMAGE } from '../constants/placeholders.js'
+import { reportListing } from '../services/reportService.js'
+import { useAuth } from '../hooks/useAuth.js'
 import '../styles/listings.css'
 
 function ListingsPage() {
@@ -11,7 +13,9 @@ function ListingsPage() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [reportingId, setReportingId] = useState(null)
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
 
   useEffect(() => {
     async function load() {
@@ -78,6 +82,29 @@ function ListingsPage() {
   const handleCardClick = (id) => {
     if (!id) return
     navigate(`/listings/${id}`)
+  }
+
+  const handleReportListing = async (event, listingId) => {
+    event.stopPropagation()
+    if (!listingId) return
+
+    const reason = window.prompt('Why are you reporting this listing?')
+    if (reason === null) return
+
+    const details = window.prompt('Additional details (optional):')
+
+    setReportingId(listingId)
+    try {
+      await reportListing(listingId, reason, details || '')
+      // eslint-disable-next-line no-alert
+      alert('Report submitted. Admin will review this listing.')
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Unable to submit report right now.'
+      // eslint-disable-next-line no-alert
+      alert(message)
+    } finally {
+      setReportingId(null)
+    }
   }
 
   const formatDate = (raw) => {
@@ -215,9 +242,21 @@ function ListingsPage() {
                 <span className="listing-card__category-pill">
                   {item.categoryName || 'Uncategorized'}
                 </span>
-                <span className={`listing-card__status ${getStatusClass(item.status)}`}>
-                  {getStatusLabel(item.status)}
-                </span>
+                <div className="listing-card__footer-right">
+                  <span className={`listing-card__status ${getStatusClass(item.status)}`}>
+                    {getStatusLabel(item.status)}
+                  </span>
+                  {isAuthenticated && (
+                    <button
+                      type="button"
+                      className="listing-card__report-btn"
+                      onClick={(event) => handleReportListing(event, item.id)}
+                      disabled={reportingId === item.id}
+                    >
+                      {reportingId === item.id ? 'Reporting...' : 'Report'}
+                    </button>
+                  )}
+                </div>
               </div>
             </article>
           ))}

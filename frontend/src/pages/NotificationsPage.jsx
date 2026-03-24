@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { fetchNotifications } from '../services/notificationService.js'
 import { useNotifications } from '../hooks/useNotifications.js'
 import Button from '../components/Button.jsx'
 import '../styles/notifications.css'
@@ -13,18 +12,15 @@ function getTypeDotClass(type) {
 }
 
 function NotificationsPage() {
-  const { notifications, setNotifications, markOneAsRead, markAllAsRead } =
+  const { notifications, refreshNotifications, markOneAsRead, markAllAsRead } =
     useNotifications()
   const [loading, setLoading] = useState(notifications.length === 0)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (notifications.length > 0) return
-
     async function load() {
       try {
-        const data = await fetchNotifications()
-        setNotifications(Array.isArray(data) ? data : data.items ?? [])
+        await refreshNotifications()
       } catch (err) {
         setError('We could not load your notifications right now. Please try again.')
       } finally {
@@ -33,7 +29,7 @@ function NotificationsPage() {
     }
 
     load()
-  }, [notifications.length, setNotifications])
+  }, [refreshNotifications])
 
   const unreadExists = notifications.some((n) => !n.read)
 

@@ -146,6 +146,8 @@ public class FoodListingService {
             Category category = categoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new NotFoundException("Category not found"));
             listing.setCategory(category);
+        } else {
+            listing.setCategory(null);
         }
 
         FoodListing updated = foodListingRepository.save(listing);

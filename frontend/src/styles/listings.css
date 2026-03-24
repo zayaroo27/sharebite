@@ -160,6 +160,12 @@
   padding: 0.55rem 1rem 0.95rem;
 }
 
+.listing-card__footer-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .listing-card__category-pill {
   display: inline-flex;
   align-items: center;
@@ -193,6 +199,22 @@
 .listing-card__status--expired {
   background: #fdeaea;
   color: #c62828;
+}
+
+.listing-card__report-btn {
+  border: 1px solid rgba(231, 73, 102, 0.45);
+  background: #fff5f7;
+  color: #e74966;
+  border-radius: 0.45rem;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.listing-card__report-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .listings-empty {

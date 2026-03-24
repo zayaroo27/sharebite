@@ -63,4 +63,16 @@ class FileStorageServiceTest {
 
         assertThrows(BadRequestException.class, () -> fileStorageService.storeFile(file));
     }
+
+    @Test
+    void storeFile_PngWithoutExtension_ShouldStoreSuccessfully() {
+        byte[] content = "fake png content".getBytes();
+        MultipartFile file = new MockMultipartFile("image", "upload", "image/png", content);
+
+        String filename = fileStorageService.storeFile(file);
+
+        assertNotNull(filename);
+        assertTrue(filename.startsWith("/uploads/"));
+        assertTrue(filename.endsWith(".png"));
+    }
 }

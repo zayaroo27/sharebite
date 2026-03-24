@@ -46,6 +46,10 @@ public class ListingRequestService {
             throw new BadRequestException("Listing is not available for requests");
         }
 
+        if (listingRequestRepository.findByListingIdAndStatus(listingId, RequestStatus.APPROVED).isPresent()) {
+            throw new ConflictException("This listing already has an approved request");
+        }
+
         // Check no active request
         if (listingRequestRepository.existsByListingIdAndRecipientIdAndStatusIn(
                 listingId, recipient.getId(), List.of(RequestStatus.PENDING, RequestStatus.APPROVED))) {
@@ -103,6 +107,11 @@ public class ListingRequestService {
 
         request.setStatus(RequestStatus.APPROVED);
         request.setDecisionDate(LocalDateTime.now());
+
+        FoodListing listing = request.getListing();
+        listing.setStatus(ListingStatus.RESERVED);
+        foodListingRepository.save(listing);
+
         ListingRequest saved = listingRequestRepository.save(request);
 
         // Create notification for recipient

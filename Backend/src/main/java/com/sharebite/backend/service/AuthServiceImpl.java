@@ -5,6 +5,8 @@ import com.sharebite.backend.dto.LoginRequest;
 import com.sharebite.backend.dto.RegisterRequest;
 import com.sharebite.backend.dto.UserDto;
 import com.sharebite.backend.entity.User;
+import com.sharebite.backend.entity.Role;
+import com.sharebite.backend.exception.BadRequestException;
 import com.sharebite.backend.exception.ConflictException;
 import com.sharebite.backend.repository.UserRepository;
 import com.sharebite.backend.security.JwtUtil;
@@ -38,6 +40,9 @@ public class AuthServiceImpl implements AuthService {
         }
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw new ConflictException("Email already exists");
+        }
+        if (request.role() == Role.ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be created through public registration");
         }
 
         User user = new User();

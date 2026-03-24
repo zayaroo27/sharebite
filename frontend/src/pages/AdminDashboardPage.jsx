@@ -7,6 +7,8 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  resolveReport,
+  dismissReport,
 } from '../services/adminService.js'
 import Button from '../components/Button.jsx'
 import '../styles/admin-dashboard.css'
@@ -14,7 +16,7 @@ import '../styles/admin-dashboard.css'
 function AdminDashboardPage() {
   const [users, setUsers] = useState([])
   const [categories, setCategories] = useState([])
-  const [moderationListings, setModerationListings] = useState([])
+  const [reports, setReports] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -25,7 +27,7 @@ function AdminDashboardPage() {
         const data = await fetchAdminDashboard()
         setUsers(data.users ?? [])
         setCategories(data.categories ?? [])
-        setModerationListings(data.listingsForModeration ?? [])
+        setReports(data.reports ?? [])
         setStats(data.stats ?? null)
       } catch (err) {
         setError('We could not load the admin dashboard right now. Please try again.')
@@ -68,13 +70,38 @@ function AdminDashboardPage() {
   const handleDeleteListing = async (listingId) => {
     try {
       await deleteListing(listingId)
-      setModerationListings((prev) =>
-        prev.filter((listing) => listing.id !== listingId),
-      )
+      setReports((prev) => prev.filter((report) => report.listingId !== listingId))
     } catch (err) {
       // eslint-disable-next-line no-alert
       alert('Unable to delete this listing right now.')
     }
+  }
+
+  const handleResolveReport = async (reportId) => {
+    try {
+      await resolveReport(reportId)
+      setReports((prev) => prev.filter((report) => report.id !== reportId))
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert('Unable to resolve this report right now.')
+    }
+  }
+
+  const handleDismissReport = async (reportId) => {
+    try {
+      await dismissReport(reportId)
+      setReports((prev) => prev.filter((report) => report.id !== reportId))
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert('Unable to dismiss this report right now.')
+    }
+  }
+
+  const formatDateTime = (value) => {
+    if (!value) return '—'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return String(value)
+    return date.toLocaleString()
   }
 
   const handleCreateCategory = async () => {
@@ -185,7 +212,7 @@ function AdminDashboardPage() {
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id}>
-                    <td>{user.name}</td>
+                    <td>{user.username}</td>
                     <td>{user.email}</td>
                     <td>{user.role}</td>
                     <td>
@@ -260,7 +287,7 @@ function AdminDashboardPage() {
                         Edit
                       </Button>
                       <Button
-                        variant="danger" class="btn btn-danger"
+                        variant="danger"
                         onClick={() => handleDeleteCategory(category.id)}
                       >
                         Delete
@@ -273,41 +300,57 @@ function AdminDashboardPage() {
           </article>
 
           <article className="card">
-            <h2 className="admin-dashboard__section-title">
-              Listing moderation
-            </h2>
-            {moderationListings.length === 0 ? (
+            <h2 className="admin-dashboard__section-title">Reports moderation</h2>
+            {reports.length === 0 ? (
               <p className="admin-dashboard__subtitle">
-                There are no listings awaiting moderation right now.
+                There are no open reports right now.
               </p>
             ) : (
-              <div className="admin-dashboard__listings-list">
-                {moderationListings.map((listing) => (
-                  <div
-                    key={listing.id}
-                    className="admin-dashboard__listings-item"
-                  >
-                    <div className="admin-dashboard__listings-main">
-                      <span className="admin-dashboard__listings-title">
-                        {listing.title}
-                      </span>
-                      <div className="admin-dashboard__listings-meta">
-                        {listing.donorName && (
-                          <span>Donor: {listing.donorName}</span>
-                        )}
-                        {listing.reason && <span>{listing.reason}</span>}
-                      </div>
-                    </div>
-                    <div className="admin-dashboard__table-actions">
-                      <Button
-                        variant="danger"
-                        onClick={() => handleDeleteListing(listing.id)}
-                      >
-                        Delete listing
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="admin-dashboard__table-wrapper">
+                <table className="admin-dashboard__table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Target</th>
+                      <th>Reported by</th>
+                      <th>Reason</th>
+                      <th>Details</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reports.map((report) => (
+                      <tr key={report.id}>
+                        <td>{report.type}</td>
+                        <td>
+                          {report.type === 'LISTING'
+                            ? (report.listingTitle || report.listingId || 'Listing')
+                            : (`Request ${report.requestId || '—'}`)}
+                        </td>
+                        <td>{report.reporterUsername || 'Unknown'}</td>
+                        <td>{report.reason || 'No details provided'}</td>
+                        <td>{report.details || '—'}</td>
+                        <td>{formatDateTime(report.createdAt)}</td>
+                        <td>
+                          <div className="admin-dashboard__table-actions">
+                            <Button variant="primary" onClick={() => handleResolveReport(report.id)}>
+                              Resolve
+                            </Button>
+                            <Button variant="outline" onClick={() => handleDismissReport(report.id)}>
+                              Dismiss
+                            </Button>
+                            {report.type === 'LISTING' && report.listingId && (
+                              <Button variant="danger" onClick={() => handleDeleteListing(report.listingId)}>
+                                Delete listing
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </article>

@@ -5,7 +5,7 @@ import '../styles/navbar.css'
 
 function NavBar() {
   const { user, isAuthenticated, logout } = useAuth()
-  const { unreadCount } = useNotifications()
+  const { unreadMessageCount, unreadAlertCount } = useNotifications()
   const navigate = useNavigate()
 
   const role = user?.role
@@ -28,7 +28,8 @@ function NavBar() {
     isActive ? 'navbar__link navbar__link--active' : 'navbar__link'
   )
 
-  const badgeText = unreadCount > 99 ? '99+' : String(unreadCount)
+  const messageBadgeText = unreadMessageCount > 99 ? '99+' : String(unreadMessageCount)
+  const alertBadgeText = unreadAlertCount > 99 ? '99+' : String(unreadAlertCount)
   const initials = (user?.username || user?.email || 'U').slice(0, 1).toUpperCase()
 
   return (
@@ -57,7 +58,7 @@ function NavBar() {
               <NavLink to="/messages" className={navLinkClass}>
                 <span className="navbar__link-with-badge">
                   <span>Messages</span>
-                  {unreadCount > 0 && <span className="navbar__nav-badge">{badgeText}</span>}
+                  {unreadMessageCount > 0 && <span className="navbar__nav-badge">{messageBadgeText}</span>}
                 </span>
               </NavLink>
             )}
@@ -74,7 +75,7 @@ function NavBar() {
                 aria-label="Notifications"
               >
                 <span aria-hidden="true">🔔</span>
-                {unreadCount > 0 && <span className="navbar__bell-badge">{badgeText}</span>}
+                {unreadAlertCount > 0 && <span className="navbar__bell-badge">{alertBadgeText}</span>}
               </button>
 
               <button
