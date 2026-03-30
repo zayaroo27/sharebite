@@ -9,6 +9,9 @@ UPDATE reports SET status = 'PENDING' WHERE status = 'OPEN';
 ALTER TABLE reports
     ADD COLUMN IF NOT EXISTS details TEXT;
 
+ALTER TABLE reports
+    ADD COLUMN IF NOT EXISTS evidence_snapshot TEXT;
+
 -- 3) Keep target consistency at schema level as well
 ALTER TABLE reports
     DROP CONSTRAINT IF EXISTS chk_reports_target_consistency;

@@ -32,6 +32,9 @@ public class User {
     @Column
     private String organisationName;
 
+    @Column
+    private String profileImageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;

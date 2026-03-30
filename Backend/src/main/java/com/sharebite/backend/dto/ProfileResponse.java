@@ -13,6 +13,7 @@ public class ProfileResponse {
     private String displayName;
     private String phoneNumber;
     private String organisationName;
+    private String profileImageUrl;
     private String role;
     private String status;
     private LocalDateTime createdAt;

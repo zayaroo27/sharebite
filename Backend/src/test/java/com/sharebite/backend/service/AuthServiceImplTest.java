@@ -49,7 +49,7 @@ class AuthServiceImplTest {
         RegisterRequest request = new RegisterRequest(
                 "admin_candidate",
                 "admin@example.com",
-                "secret",
+                "Admin123",
                 Role.ADMIN
         );
 
@@ -70,7 +70,7 @@ class AuthServiceImplTest {
         RegisterRequest request = new RegisterRequest(
                 "donor_user",
                 "donor@example.com",
-                "secret",
+                "donor2026",
                 Role.DONOR
         );
 
@@ -86,5 +86,30 @@ class AuthServiceImplTest {
         assertEquals(Role.DONOR, response.user().role());
         assertTrue(response.user().email().contains("@"));
         verify(userRepository).save(any());
+    }
+
+    @Test
+    void register_WeakPassword_ShouldReject() {
+        RegisterRequest request = new RegisterRequest(
+                "recipient_user",
+                "recipient@example.com",
+                "password",
+                Role.RECIPIENT
+        );
+
+        when(userRepository.findByUsername(request.username())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(request.email())).thenReturn(Optional.empty());
+
+        BadRequestException exception = assertThrows(
+                BadRequestException.class,
+                () -> authService.register(request)
+        );
+
+        assertEquals(
+                "Password must be at least 8 characters long and include at least one letter and one number.",
+                exception.getMessage()
+        );
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(userRepository, never()).save(any());
     }
 }

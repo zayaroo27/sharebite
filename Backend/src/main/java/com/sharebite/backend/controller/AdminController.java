@@ -1,6 +1,7 @@
 package com.sharebite.backend.controller;
 
 import com.sharebite.backend.dto.AdminStatsResponse;
+import com.sharebite.backend.dto.AdminReportDetailResponse;
 import com.sharebite.backend.dto.AdminReportResponse;
 import com.sharebite.backend.dto.AdminUserResponse;
 import com.sharebite.backend.service.AdminService;
@@ -51,9 +52,16 @@ public class AdminController {
     }
 
     @GetMapping("/reports")
-    public ResponseEntity<List<AdminReportResponse>> getOpenReports() {
-        List<AdminReportResponse> reports = adminService.getOpenReports();
+    public ResponseEntity<List<AdminReportResponse>> getReports(
+            @RequestParam(required = false) String status) {
+        List<AdminReportResponse> reports = adminService.getReports(status);
         return ResponseEntity.ok(reports);
+    }
+
+    @GetMapping("/reports/{id}")
+    public ResponseEntity<AdminReportDetailResponse> getReportDetail(@PathVariable UUID id) {
+        AdminReportDetailResponse response = adminService.getReportDetail(id);
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/reports/{id}/resolve")

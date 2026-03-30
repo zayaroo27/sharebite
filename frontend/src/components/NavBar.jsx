@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 import { useNotifications } from '../hooks/useNotifications.js'
+import Avatar from './Avatar.jsx'
 import '../styles/navbar.css'
 
 function NavBar() {
@@ -30,7 +31,7 @@ function NavBar() {
 
   const messageBadgeText = unreadMessageCount > 99 ? '99+' : String(unreadMessageCount)
   const alertBadgeText = unreadAlertCount > 99 ? '99+' : String(unreadAlertCount)
-  const initials = (user?.username || user?.email || 'U').slice(0, 1).toUpperCase()
+  const avatarName = user?.displayName || user?.username || user?.email || 'User'
 
   return (
     <header className="navbar">
@@ -83,7 +84,12 @@ function NavBar() {
                 className="navbar__profile-pill"
                 onClick={() => navigate('/profile')}
               >
-                <span className="navbar__avatar" aria-hidden="true">{initials}</span>
+                <Avatar
+                  className="navbar__avatar"
+                  name={avatarName}
+                  imageUrl={user?.profileImageUrl}
+                  size={28}
+                />
                 <span>Profile</span>
               </button>
               <button

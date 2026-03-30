@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react'
-import { fetchProfile, updateProfile } from '../services/authService.js'
+import { fetchProfile, updateProfile, uploadProfileImage } from '../services/authService.js'
 import { useAuth } from '../hooks/useAuth.js'
+import Avatar from '../components/Avatar.jsx'
 import TextInput from '../components/TextInput.jsx'
 import Button from '../components/Button.jsx'
+import '../styles/profile.css'
+
+function formatProfileDate(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
 
 function ProfilePage() {
   const { user, setUser } = useAuth()
@@ -14,6 +27,9 @@ function ProfilePage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -37,6 +53,20 @@ function ProfilePage() {
     load()
   }, [])
 
+  useEffect(() => {
+    if (!selectedImage) {
+      setImagePreviewUrl('')
+      return undefined
+    }
+
+    const nextPreviewUrl = window.URL.createObjectURL(selectedImage)
+    setImagePreviewUrl(nextPreviewUrl)
+
+    return () => {
+      window.URL.revokeObjectURL(nextPreviewUrl)
+    }
+  }, [selectedImage])
+
   const handleChange = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
@@ -59,6 +89,39 @@ function ProfilePage() {
     }
   }
 
+  const handleImageSelection = (event) => {
+    const file = event.target.files?.[0] || null
+    if (!file) {
+      setSelectedImage(null)
+      return
+    }
+    if (!String(file.type || '').startsWith('image/')) {
+      setError('Please choose a JPG or PNG image file.')
+      return
+    }
+    setError('')
+    setSelectedImage(file)
+  }
+
+  const handleImageUpload = async () => {
+    if (!selectedImage) return
+    setError('')
+    setSuccess('')
+    setUploadingImage(true)
+
+    try {
+      const updated = await uploadProfileImage(selectedImage)
+      setProfile((prev) => ({ ...prev, ...updated }))
+      setUser((prev) => ({ ...(prev || {}), ...updated }))
+      setSelectedImage(null)
+      setSuccess('Your profile picture has been updated.')
+    } catch (err) {
+      setError(err?.response?.data?.message || 'We could not upload your profile picture right now.')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   if (loading) {
     return (
       <section>
@@ -77,7 +140,7 @@ function ProfilePage() {
 
   return (
     <section>
-      <div className="card card--elevated">
+      <div className="card card--elevated profile-page__card">
         <header className="card__header">
           <h1 className="card__title">Account profile</h1>
           <p className="card__subtitle">
@@ -87,44 +150,58 @@ function ProfilePage() {
         </header>
 
         {profile && (
-          <div style={{ marginBottom: '1.5rem', display: 'grid', gap: '0.75rem' }}>
-            <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--sb-color-text-muted)' }}>
-                Username
-              </span>
-              <div>{profile.username || profile.name || '—'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--sb-color-text-muted)' }}>
-                Email
-              </span>
-              <div>{profile.email}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--sb-color-text-muted)' }}>
-                Role
-              </span>
-              <div>{profile.role}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--sb-color-text-muted)' }}>
-                Status
-              </span>
-              <div>{profile.status || 'ACTIVE'}</div>
-            </div>
-            {profile.createdAt && (
-              <div>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--sb-color-text-muted)',
-                  }}
+          <div className="profile-page__overview">
+            <div className="profile-page__avatar-column">
+              <Avatar
+                className="profile-page__avatar"
+                name={profile.displayName || profile.username || user?.username}
+                imageUrl={imagePreviewUrl || profile.profileImageUrl || user?.profileImageUrl}
+                size={88}
+              />
+              <div className="profile-page__upload-group">
+                <label className="profile-page__upload-label" htmlFor="profile-image">
+                  Choose profile picture
+                </label>
+                <input
+                  id="profile-image"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleImageSelection}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleImageUpload}
+                  disabled={!selectedImage || uploadingImage}
                 >
-                  Member since
-                </span>
-                <div>{profile.createdAt}</div>
+                  {uploadingImage ? 'Uploading…' : 'Upload image'}
+                </Button>
               </div>
-            )}
+            </div>
+            <div className="profile-page__details-grid">
+              <div>
+                <span className="profile-page__meta-label">Username</span>
+                <div>{profile.username || profile.name || '—'}</div>
+              </div>
+              <div>
+                <span className="profile-page__meta-label">Email</span>
+                <div>{profile.email}</div>
+              </div>
+              <div>
+                <span className="profile-page__meta-label">Role</span>
+                <div>{profile.role}</div>
+              </div>
+              <div>
+                <span className="profile-page__meta-label">Status</span>
+                <div>{profile.status || 'ACTIVE'}</div>
+              </div>
+              {profile.createdAt && (
+                <div>
+                  <span className="profile-page__meta-label">Member since</span>
+                  <div>{formatProfileDate(profile.createdAt)}</div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

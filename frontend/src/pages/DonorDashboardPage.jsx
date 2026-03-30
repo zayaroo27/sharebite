@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchDonorDashboard, approveRequest, rejectRequest } from '../services/donorService.js'
-import { uploadListingImage, updateMyListing, deleteMyListing } from '../services/listingService.js'
+import { deleteMyListing } from '../services/listingService.js'
 import Button from '../components/Button.jsx'
 import { LISTING_PLACEHOLDER_IMAGE } from '../constants/placeholders.js'
 import '../styles/donor-dashboard.css'
@@ -10,15 +10,6 @@ function DonorDashboardPage() {
   const [listings, setListings] = useState([])
   const [requests, setRequests] = useState([])
   const [showCanceledRequests, setShowCanceledRequests] = useState(false)
-  const [editingListing, setEditingListing] = useState(null)
-  const [editForm, setEditForm] = useState({
-    title: '',
-    description: '',
-    quantity: '',
-    location: '',
-    expiryDate: '',
-  })
-  const [editImageFile, setEditImageFile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -39,74 +30,13 @@ function DonorDashboardPage() {
     load()
   }, [])
 
-  const handleUploadImage = async (listingId, file) => {
-    if (!listingId || !file) return
-    try {
-      const updated = await uploadListingImage(listingId, file)
-      setListings((prev) =>
-        prev.map((listing) => (listing.id === listingId ? updated : listing)),
-      )
-    } catch (err) {
-      // eslint-disable-next-line no-alert
-      alert('Unable to upload an image for this listing right now.')
-    }
-  }
-
   const handleCreate = () => {
     navigate('/dashboard/donor/create-listing')
   }
 
   const handleEdit = (listing) => {
     if (!listing?.id) return
-    setEditingListing(listing)
-    setEditForm({
-      title: listing.title ?? '',
-      description: listing.description ?? '',
-      quantity: listing.quantity ?? '',
-      location: listing.location ?? '',
-      expiryDate: listing.expiryDate ?? '',
-    })
-    setEditImageFile(null)
-  }
-
-  const handleEditFormChange = (event) => {
-    const { name, value } = event.target
-    setEditForm((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleEditSubmit = async (event) => {
-    event.preventDefault()
-    if (!editingListing?.id) return
-
-    try {
-      let updated = await updateMyListing(editingListing.id, {
-        title: editForm.title.trim(),
-        description: editForm.description.trim(),
-        quantity: editForm.quantity.trim(),
-        location: editForm.location.trim(),
-        expiryDate: editForm.expiryDate,
-      })
-
-      if (editImageFile) {
-        updated = await uploadListingImage(editingListing.id, editImageFile)
-      }
-
-      setListings((prev) =>
-        prev.map((item) => (item.id === editingListing.id ? updated : item)),
-      )
-
-      setEditingListing(null)
-      setEditImageFile(null)
-    } catch (err) {
-      const message = err?.response?.data?.message || 'Unable to update this listing right now.'
-      // eslint-disable-next-line no-alert
-      alert(message)
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setEditingListing(null)
-    setEditImageFile(null)
+    navigate(`/dashboard/donor/edit-listing/${listing.id}`)
   }
 
   const handleDelete = async (listingId) => {
@@ -227,65 +157,6 @@ function DonorDashboardPage() {
           + Create New Listing
         </Button>
       </div>
-
-      {editingListing && (
-        <article className="card donor-dashboard__edit-card">
-          <h2 className="donor-dashboard__section-title">Edit Listing</h2>
-          <form onSubmit={handleEditSubmit} className="donor-dashboard__edit-form">
-            <input
-              className="form-input"
-              name="title"
-              placeholder="Title"
-              value={editForm.title}
-              onChange={handleEditFormChange}
-              required
-            />
-            <textarea
-              className="form-input"
-              name="description"
-              placeholder="Description"
-              value={editForm.description}
-              onChange={handleEditFormChange}
-              rows={3}
-              required
-            />
-            <input
-              className="form-input"
-              name="quantity"
-              placeholder="Quantity"
-              value={editForm.quantity}
-              onChange={handleEditFormChange}
-              required
-            />
-            <input
-              className="form-input"
-              name="location"
-              placeholder="Location"
-              value={editForm.location}
-              onChange={handleEditFormChange}
-              required
-            />
-            <input
-              className="form-input"
-              type="date"
-              name="expiryDate"
-              value={editForm.expiryDate}
-              onChange={handleEditFormChange}
-              required
-            />
-            <input
-              className="form-input"
-              type="file"
-              accept="image/*"
-              onChange={(event) => setEditImageFile(event.target.files?.[0] ?? null)}
-            />
-            <div className="donor-dashboard__edit-actions">
-              <Button type="submit" variant="primary">Save Changes</Button>
-              <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-            </div>
-          </form>
-        </article>
-      )}
 
       <article>
         <h2 className="donor-dashboard__section-title">My Listings</h2>

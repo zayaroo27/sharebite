@@ -1,83 +1,117 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchListings } from '../services/listingService.js'
+import { fetchCategories, fetchListings } from '../services/listingService.js'
 import { LISTING_PLACEHOLDER_IMAGE } from '../constants/placeholders.js'
 import { reportListing } from '../services/reportService.js'
 import { useAuth } from '../hooks/useAuth.js'
+import ReportModal from '../components/ReportModal.jsx'
 import '../styles/listings.css'
+
+const SEARCH_DEBOUNCE_MS = 400
 
 function ListingsPage() {
   const [listings, setListings] = useState([])
+  const [categories, setCategories] = useState([])
+  const [locationOptions, setLocationOptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [reportTarget, setReportTarget] = useState(null)
   const [reportingId, setReportingId] = useState(null)
+  const [reportError, setReportError] = useState('')
+  const [reportFeedback, setReportFeedback] = useState('')
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
 
   useEffect(() => {
-    async function load() {
+    let active = true
+
+    async function loadCategories() {
       try {
-        const data = await fetchListings()
-        setListings(Array.isArray(data) ? data : data.items ?? [])
-      } catch (err) {
-        setError('We could not load listings right now. Please try again soon.')
-      } finally {
-        setLoading(false)
+        const data = await fetchCategories()
+        if (!active) return
+        setCategories(Array.isArray(data) ? data : [])
+      } catch {
+        if (!active) return
+        setCategories([])
       }
     }
 
-    load()
+    loadCategories()
+
+    return () => {
+      active = false
+    }
   }, [])
 
-  const categories = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          listings
-            .map((item) => item.categoryName)
-            .filter(Boolean)
-            .sort(),
-        ),
-      ),
-    [listings],
-  )
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+    }, SEARCH_DEBOUNCE_MS)
 
-  const locations = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          listings
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [search])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadListings() {
+      setLoading(true)
+      setError('')
+
+      try {
+        const data = await fetchListings({
+          keyword: debouncedSearch,
+          categoryId: categoryFilter,
+          location: locationFilter,
+        })
+
+        if (!active) return
+
+        const nextListings = Array.isArray(data) ? data : data.items ?? []
+        setListings(nextListings)
+
+        setLocationOptions((prev) => {
+          const merged = new Set(prev)
+          nextListings
             .map((item) => item.location)
             .filter(Boolean)
-            .sort(),
-        ),
-      ),
-    [listings],
+            .forEach((location) => merged.add(location))
+
+          if (locationFilter) {
+            merged.add(locationFilter)
+          }
+
+          return Array.from(merged).sort((left, right) => left.localeCompare(right))
+        })
+      } catch (err) {
+        if (!active) return
+        setListings([])
+        setError('We could not load listings right now. Please try again soon.')
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadListings()
+
+    return () => {
+      active = false
+    }
+  }, [debouncedSearch, categoryFilter, locationFilter])
+
+  const hasActiveFilters = useMemo(
+    () => Boolean(debouncedSearch || categoryFilter || locationFilter),
+    [debouncedSearch, categoryFilter, locationFilter],
   )
-
-  const filteredListings = useMemo(
-    () => {
-      const searchLower = search.trim().toLowerCase()
-
-      return listings.filter((item) => {
-        if (categoryFilter && item.categoryName !== categoryFilter) return false
-        if (locationFilter && item.location !== locationFilter) return false
-
-        if (!searchLower) return true
-
-        const haystack = [item.title, item.description, item.location]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-
-        return haystack.includes(searchLower)
-      })
-    },
-    [listings, search, categoryFilter, locationFilter],
-  )
+  const canReportListings = isAuthenticated && user?.role !== 'ADMIN'
 
   const handleCardClick = (id) => {
     if (!id) return
@@ -87,21 +121,29 @@ function ListingsPage() {
   const handleReportListing = async (event, listingId) => {
     event.stopPropagation()
     if (!listingId) return
+    const listing = listings.find((item) => item.id === listingId) ?? null
+    setReportError('')
+    setReportFeedback('')
+    setReportTarget(listing)
+  }
 
-    const reason = window.prompt('Why are you reporting this listing?')
-    if (reason === null) return
+  const handleCloseReportModal = () => {
+    if (reportingId) return
+    setReportTarget(null)
+    setReportError('')
+  }
 
-    const details = window.prompt('Additional details (optional):')
+  const handleSubmitReport = async ({ reason, details }) => {
+    if (!reportTarget?.id) return
 
-    setReportingId(listingId)
+    setReportingId(reportTarget.id)
+    setReportError('')
     try {
-      await reportListing(listingId, reason, details || '')
-      // eslint-disable-next-line no-alert
-      alert('Report submitted. Admin will review this listing.')
+      await reportListing(reportTarget.id, reason, details)
+      setReportFeedback('Your report was submitted and will be reviewed by an admin.')
+      setReportTarget(null)
     } catch (err) {
-      const message = err?.response?.data?.message || 'Unable to submit report right now.'
-      // eslint-disable-next-line no-alert
-      alert(message)
+      setReportError(err?.response?.data?.message || 'Unable to submit report right now.')
     } finally {
       setReportingId(null)
     }
@@ -163,8 +205,8 @@ function ListingsPage() {
           >
             <option value="">All Categories</option>
             {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
+              <option key={category.id} value={category.id}>
+                {category.name}
               </option>
             ))}
           </select>
@@ -178,7 +220,7 @@ function ListingsPage() {
             onChange={(event) => setLocationFilter(event.target.value)}
           >
             <option value="">All Locations</option>
-            {locations.map((location) => (
+            {locationOptions.map((location) => (
               <option key={location} value={location}>
                 {location}
               </option>
@@ -189,16 +231,17 @@ function ListingsPage() {
 
       {loading && <p>Loading listings…</p>}
       {error && !loading && <p className="form-error">{error}</p>}
+      {reportFeedback && !loading && <p className="form-helper">{reportFeedback}</p>}
 
-      {!loading && !error && filteredListings.length === 0 && (
+      {!loading && !error && listings.length === 0 && (
         <div className="listings-empty">
-          <p>No listings match your current filters.</p>
+          <p>{hasActiveFilters ? 'No listings found for the selected filters.' : 'No listings found.'}</p>
         </div>
       )}
 
-      {!loading && !error && filteredListings.length > 0 && (
+      {!loading && !error && listings.length > 0 && (
         <div className="listings-grid">
-          {filteredListings.map((item) => (
+          {listings.map((item) => (
             <article
               key={item.id}
               className="card listing-card"
@@ -214,54 +257,65 @@ function ListingsPage() {
                 />
               </div>
 
-              <div className="listing-card__title-row">
-                <div>
+              <div className="listing-card__body">
+                <div className="listing-card__title-row">
                   <h2 className="listing-card__title">{item.title}</h2>
-                </div>
-                {item.quantity && (
-                  <span className="badge badge-quantity">{item.quantity}</span>
-                )}
-              </div>
-
-              <div className="listing-card__meta">
-                {item.location && (
-                  <span className="listing-card__meta-item">
-                    <span aria-hidden="true">📍</span>
-                    <span>{item.location}</span>
-                  </span>
-                )}
-                {item.expiryDate && (
-                  <span className="listing-card__meta-item">
-                    <span aria-hidden="true">🗓</span>
-                    <span>Expires: {formatDate(item.expiryDate)}</span>
-                  </span>
-                )}
-              </div>
-
-              <div className="listing-card__footer">
-                <span className="listing-card__category-pill">
-                  {item.categoryName || 'Uncategorized'}
-                </span>
-                <div className="listing-card__footer-right">
-                  <span className={`listing-card__status ${getStatusClass(item.status)}`}>
-                    {getStatusLabel(item.status)}
-                  </span>
-                  {isAuthenticated && (
-                    <button
-                      type="button"
-                      className="listing-card__report-btn"
-                      onClick={(event) => handleReportListing(event, item.id)}
-                      disabled={reportingId === item.id}
-                    >
-                      {reportingId === item.id ? 'Reporting...' : 'Report'}
-                    </button>
+                  {item.quantity && (
+                    <span className="badge badge-quantity listing-card__quantity-pill">{item.quantity}</span>
                   )}
+                </div>
+
+                <div className="listing-card__meta">
+                  {item.location && (
+                    <span className="listing-card__meta-item">
+                      <span className="listing-card__meta-icon" aria-hidden="true">📍</span>
+                      <span>{item.location}</span>
+                    </span>
+                  )}
+                  {item.expiryDate && (
+                    <span className="listing-card__meta-item">
+                      <span className="listing-card__meta-icon" aria-hidden="true">🗓</span>
+                      <span>Expires {formatDate(item.expiryDate)}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="listing-card__footer">
+                  <span className="listing-card__category-pill">
+                    {item.categoryName || 'Uncategorized'}
+                  </span>
+                  <div className="listing-card__footer-right">
+                    <span className={`listing-card__status ${getStatusClass(item.status)}`}>
+                      {getStatusLabel(item.status)}
+                    </span>
+                    {canReportListings && (
+                      <button
+                        type="button"
+                        className="listing-card__report-btn"
+                        onClick={(event) => handleReportListing(event, item.id)}
+                        disabled={reportingId === item.id}
+                      >
+                        {reportingId === item.id ? 'Reporting...' : 'Report'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </article>
           ))}
         </div>
       )}
+
+      <ReportModal
+        isOpen={Boolean(reportTarget)}
+        title="Report listing"
+        subtitle="Help our admins review this listing fairly by explaining the problem clearly."
+        targetLabel={reportTarget?.title || 'Selected listing'}
+        submitting={Boolean(reportingId)}
+        submitError={reportError}
+        onClose={handleCloseReportModal}
+        onSubmit={handleSubmitReport}
+      />
     </section>
   )
 }

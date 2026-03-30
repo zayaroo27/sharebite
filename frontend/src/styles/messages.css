@@ -66,6 +66,17 @@
   box-shadow: 0 0 0 1px rgba(46, 125, 50, 0.12);
 }
 
+.conversation-row__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.72rem;
+}
+
+.conversation-row__content {
+  min-width: 0;
+  flex: 1;
+}
+
 .conversation-row__top {
   display: flex;
   align-items: flex-start;
@@ -179,6 +190,10 @@
   font-size: 0.86rem;
 }
 
+.messages-main__avatar {
+  margin-right: 0.15rem;
+}
+
 .messages-main__request-ref {
   margin: 0.4rem 0 0;
   font-size: 0.8rem;
@@ -212,6 +227,10 @@
   padding: 0.6rem 0.72rem;
   width: fit-content;
   border: 1px solid #d9dee3;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: flex-start;
 }
 
 .message-bubble--mine {
@@ -232,6 +251,10 @@
   gap: 0.36rem;
   font-size: 0.72rem;
   color: #748090;
+}
+
+.message-bubble__body {
+  min-width: 0;
 }
 
 .message-bubble__content {

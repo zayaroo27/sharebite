@@ -24,7 +24,13 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDto>> getAllUsers() {
         List<UserDto> users = userRepository.findAll().stream()
-                .map(user -> new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getRole()))
+                .map(user -> new UserDto(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getEmail(),
+                        user.getRole(),
+                        user.getProfileImageUrl()
+                ))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
     }

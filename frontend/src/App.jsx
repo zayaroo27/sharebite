@@ -10,6 +10,7 @@ import ListingsPage from './pages/ListingsPage.jsx'
 import ListingDetailsPage from './pages/ListingDetailsPage.jsx'
 import DonorDashboardPage from './pages/DonorDashboardPage.jsx'
 import CreateListingPage from './pages/CreateListingPage.jsx'
+import EditListingPage from './pages/EditListingPage.jsx'
 import RecipientDashboardPage from './pages/RecipientDashboardPage.jsx'
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
@@ -52,6 +53,14 @@ function App() {
           element={(
             <ProtectedRoute allowedRoles={['DONOR']}>
               <CreateListingPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/dashboard/donor/edit-listing/:id"
+          element={(
+            <ProtectedRoute allowedRoles={['DONOR']}>
+              <EditListingPage />
             </ProtectedRoute>
           )}
         />

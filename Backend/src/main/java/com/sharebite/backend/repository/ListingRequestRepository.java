@@ -23,7 +23,12 @@ public interface ListingRequestRepository extends JpaRepository<ListingRequest, 
     boolean existsByListingIdAndRecipientIdAndStatusIn(UUID listingId, UUID recipientId, Collection<RequestStatus> statuses);
 
     Optional<ListingRequest> findByListingIdAndStatus(UUID listingId, RequestStatus status);
+
+    List<ListingRequest> findByListingIdAndStatusAndIdNot(UUID listingId, RequestStatus status, UUID id);
+
     List<ListingRequest> findByListingId(UUID listingId);
-void deleteByListingId(UUID listingId);
+
+    void deleteByListingId(UUID listingId);
+
     long countByStatus(RequestStatus status);
 }

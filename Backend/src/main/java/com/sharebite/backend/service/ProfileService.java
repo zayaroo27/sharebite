@@ -8,12 +8,16 @@ import com.sharebite.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class ProfileService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private FileStorageService fileStorageService;
 
     public ProfileResponse getMyProfile() {
         User user = getCurrentUser();
@@ -32,6 +36,18 @@ public class ProfileService {
         return mapToResponse(saved);
     }
 
+    public ProfileResponse uploadProfileImage(MultipartFile file) {
+        User user = getCurrentUser();
+        return uploadProfileImage(file, user);
+    }
+
+    public ProfileResponse uploadProfileImage(MultipartFile file, User user) {
+        String imageUrl = fileStorageService.storeFile(file);
+        user.setProfileImageUrl(imageUrl);
+        User saved = userRepository.save(user);
+        return mapToResponse(saved);
+    }
+
     private User getCurrentUser() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
@@ -46,6 +62,7 @@ public class ProfileService {
         response.setDisplayName(user.getDisplayName());
         response.setPhoneNumber(user.getPhoneNumber());
         response.setOrganisationName(user.getOrganisationName());
+        response.setProfileImageUrl(user.getProfileImageUrl());
         response.setRole(user.getRole().name());
         response.setStatus(user.getStatus().name());
         response.setCreatedAt(user.getCreatedAt());

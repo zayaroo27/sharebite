@@ -6,6 +6,8 @@ import { fetchRecipientDashboard } from '../services/recipientService.js'
 import { reportRequest } from '../services/reportService.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useNotifications } from '../hooks/useNotifications.js'
+import Avatar from '../components/Avatar.jsx'
+import ReportModal from '../components/ReportModal.jsx'
 import '../styles/messages.css'
 
 const POLL_INTERVAL_MS = 5000
@@ -48,6 +50,9 @@ function MessagesPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
   const [reportingConversation, setReportingConversation] = useState(false)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [reportError, setReportError] = useState('')
+  const [reportFeedback, setReportFeedback] = useState('')
   const [error, setError] = useState('')
   const [conversationError, setConversationError] = useState('')
 
@@ -230,21 +235,26 @@ function MessagesPage() {
     user?.role === 'DONOR' ? 'RECIPIENT' : 'DONOR'
   )
 
+  const getParticipantImageUrl = (conversation) => (
+    user?.role === 'DONOR' ? conversation.recipientProfileImageUrl : conversation.donorProfileImageUrl
+  )
+
   const handleReportConversation = async () => {
     if (!selectedConversation?.requestId) return
-    const reason = window.prompt('Why are you reporting this conversation?')
-    if (reason === null) return
-    const details = window.prompt('Additional details (optional):')
+    setReportError('')
+    setReportFeedback('')
+    setReportModalOpen(true)
+  }
 
+  const handleSubmitConversationReport = async ({ reason, details }) => {
+    if (!selectedConversation?.requestId) return
     setReportingConversation(true)
     try {
-      await reportRequest(selectedConversation.requestId, reason, details || '')
-      // eslint-disable-next-line no-alert
-      alert('Conversation reported. Admin will review it.')
+      await reportRequest(selectedConversation.requestId, reason, details)
+      setReportFeedback('This conversation has been reported and queued for admin review.')
+      setReportModalOpen(false)
     } catch (err) {
-      const message = err?.response?.data?.message || 'Unable to submit report right now.'
-      // eslint-disable-next-line no-alert
-      alert(message)
+      setReportError(err?.response?.data?.message || 'Unable to submit report right now.')
     } finally {
       setReportingConversation(false)
     }
@@ -286,6 +296,14 @@ function MessagesPage() {
                   className={`conversation-row ${selected ? 'conversation-row--active' : ''}`.trim()}
                   onClick={() => setSelectedRequestId(conversation.requestId)}
                 >
+                  <div className="conversation-row__identity">
+                    <Avatar
+                      className="conversation-row__avatar"
+                      name={participant}
+                      imageUrl={getParticipantImageUrl(conversation)}
+                      size={40}
+                    />
+                    <div className="conversation-row__content">
                   <div className="conversation-row__top">
                     <h3>{conversation.listingTitle || 'Untitled listing'}</h3>
                     {latest?.timestamp && (
@@ -305,6 +323,8 @@ function MessagesPage() {
                   <p className="conversation-row__preview">
                     {latest?.content || 'No messages yet for this request.'}
                   </p>
+                    </div>
+                  </div>
                 </button>
               )
             })}
@@ -334,6 +354,12 @@ function MessagesPage() {
                 </button>
               </div>
               <div className="messages-main__meta">
+                <Avatar
+                  className="messages-main__avatar"
+                  name={getParticipantName(selectedConversation) || 'Unknown participant'}
+                  imageUrl={getParticipantImageUrl(selectedConversation)}
+                  size={34}
+                />
                 <span>{getParticipantName(selectedConversation) || 'Unknown participant'}</span>
                 <span className="conversation-badge conversation-badge--role">{getParticipantRole()}</span>
                 <span className="conversation-badge conversation-badge--status">{selectedConversation.status || 'PENDING'}</span>
@@ -342,6 +368,7 @@ function MessagesPage() {
             </header>
 
             {error && <p className="form-error">{error}</p>}
+            {reportFeedback && <p className="form-helper">{reportFeedback}</p>}
 
             <div className="messages-thread">
               {loadingMessages ? (
@@ -359,12 +386,20 @@ function MessagesPage() {
                       key={message.id}
                       className={`message-bubble ${mine ? 'message-bubble--mine' : 'message-bubble--other'}`.trim()}
                     >
-                      <div className="message-bubble__meta">
-                        <strong>{message.senderUsername}</strong>
-                        {message.senderRole && <span>{message.senderRole}</span>}
+                      <Avatar
+                        className="message-bubble__avatar"
+                        name={message.senderUsername}
+                        imageUrl={mine ? user?.profileImageUrl : message.senderProfileImageUrl}
+                        size={32}
+                      />
+                      <div className="message-bubble__body">
+                        <div className="message-bubble__meta">
+                          <strong>{message.senderUsername}</strong>
+                          {message.senderRole && <span>{message.senderRole}</span>}
+                        </div>
+                        <p className="message-bubble__content">{message.content}</p>
+                        <time className="message-bubble__time">{formatTimestamp(message.timestamp)}</time>
                       </div>
-                      <p className="message-bubble__content">{message.content}</p>
-                      <time className="message-bubble__time">{formatTimestamp(message.timestamp)}</time>
                     </article>
                   )
                 })
@@ -390,6 +425,21 @@ function MessagesPage() {
           </>
         )}
       </section>
+
+      <ReportModal
+        isOpen={reportModalOpen}
+        title="Report conversation"
+        subtitle="Describe what happened in this request conversation so an admin can review the evidence."
+        targetLabel={selectedConversation?.listingTitle || 'Selected conversation'}
+        submitting={reportingConversation}
+        submitError={reportError}
+        onClose={() => {
+          if (reportingConversation) return
+          setReportModalOpen(false)
+          setReportError('')
+        }}
+        onSubmit={handleSubmitConversationReport}
+      />
     </section>
   )
 }

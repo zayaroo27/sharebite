@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   fetchAdminDashboard,
+  fetchAdminReport,
   suspendUser,
   reactivateUser,
-  deleteListing,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -13,13 +13,122 @@ import {
 import Button from '../components/Button.jsx'
 import '../styles/admin-dashboard.css'
 
+function formatDateTime(value) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString()
+}
+
+function EvidenceUser({ user, label }) {
+  if (!user) return null
+
+  return (
+    <div className="admin-dashboard__evidence-block">
+      <h4>{label}</h4>
+      <div className="admin-dashboard__evidence-grid">
+        <div><span>Username</span><strong>{user.username || '—'}</strong></div>
+        <div><span>Display name</span><strong>{user.displayName || '—'}</strong></div>
+        <div><span>Role</span><strong>{user.role || '—'}</strong></div>
+        <div><span>Organisation</span><strong>{user.organisationName || '—'}</strong></div>
+        <div><span>Email</span><strong>{user.email || '—'}</strong></div>
+      </div>
+    </div>
+  )
+}
+
+function ListingEvidence({ listingEvidence }) {
+  if (!listingEvidence) return null
+
+  return (
+    <div className="admin-dashboard__evidence-block">
+      <div className="admin-dashboard__evidence-head">
+        <h4>Listing evidence</h4>
+        {listingEvidence.fromSnapshot && (
+          <span className="badge badge-warning">Snapshot evidence</span>
+        )}
+      </div>
+      <div className="admin-dashboard__evidence-grid">
+        <div><span>Title</span><strong>{listingEvidence.title || '—'}</strong></div>
+        <div><span>Category</span><strong>{listingEvidence.categoryName || '—'}</strong></div>
+        <div><span>Quantity</span><strong>{listingEvidence.quantity || '—'}</strong></div>
+        <div><span>Expiry date</span><strong>{listingEvidence.expiryDate || '—'}</strong></div>
+        <div><span>Location</span><strong>{listingEvidence.location || '—'}</strong></div>
+        <div><span>Status</span><strong>{listingEvidence.status || '—'}</strong></div>
+      </div>
+      <div className="admin-dashboard__evidence-text">
+        <span>Description</span>
+        <p>{listingEvidence.description || 'No description captured.'}</p>
+      </div>
+      {listingEvidence.imageUrl && (
+        <div className="admin-dashboard__evidence-image-wrap">
+          <img src={listingEvidence.imageUrl} alt={listingEvidence.title || 'Listing evidence'} />
+        </div>
+      )}
+      <EvidenceUser user={listingEvidence.donor} label="Donor" />
+    </div>
+  )
+}
+
+function RequestEvidence({ requestEvidence }) {
+  if (!requestEvidence) return null
+
+  return (
+    <div className="admin-dashboard__evidence-block">
+      <div className="admin-dashboard__evidence-head">
+        <h4>Conversation / request evidence</h4>
+        {requestEvidence.fromSnapshot && (
+          <span className="badge badge-warning">Snapshot evidence</span>
+        )}
+      </div>
+      <div className="admin-dashboard__evidence-grid">
+        <div><span>Request ID</span><strong>{requestEvidence.requestId || '—'}</strong></div>
+        <div><span>Status</span><strong>{requestEvidence.status || '—'}</strong></div>
+        <div><span>Requested</span><strong>{formatDateTime(requestEvidence.requestDate)}</strong></div>
+        <div><span>Decision</span><strong>{formatDateTime(requestEvidence.decisionDate)}</strong></div>
+        <div><span>Completed</span><strong>{formatDateTime(requestEvidence.completedDate)}</strong></div>
+      </div>
+
+      <ListingEvidence listingEvidence={requestEvidence.listing} />
+      <EvidenceUser user={requestEvidence.donor} label="Donor" />
+      <EvidenceUser user={requestEvidence.recipient} label="Recipient" />
+
+      <div className="admin-dashboard__evidence-block">
+        <h4>Conversation history</h4>
+        {requestEvidence.messages?.length ? (
+          <div className="admin-dashboard__messages-list">
+            {requestEvidence.messages.map((message) => (
+              <article key={message.id || `${message.timestamp}-${message.senderUsername}`} className="admin-dashboard__message-item">
+                <div className="admin-dashboard__message-head">
+                  <strong>{message.senderUsername || 'Unknown sender'}</strong>
+                  <span>{message.senderRole || '—'}</span>
+                  <time>{formatDateTime(message.timestamp)}</time>
+                </div>
+                <p>{message.content || '—'}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="admin-dashboard__subtitle">No messages were captured for this request.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AdminDashboardPage() {
   const [users, setUsers] = useState([])
   const [categories, setCategories] = useState([])
   const [reports, setReports] = useState([])
   const [stats, setStats] = useState(null)
+  const [selectedReportId, setSelectedReportId] = useState(null)
+  const [selectedReportDetail, setSelectedReportDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const [reportTab, setReportTab] = useState('PENDING')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [dashboardWarning, setDashboardWarning] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -29,6 +138,13 @@ function AdminDashboardPage() {
         setCategories(data.categories ?? [])
         setReports(data.reports ?? [])
         setStats(data.stats ?? null)
+        if (Array.isArray(data.sectionErrors) && data.sectionErrors.length > 0) {
+          setDashboardWarning(
+            `Some admin sections could not be loaded: ${data.sectionErrors.join(', ')}.`,
+          )
+        } else {
+          setDashboardWarning('')
+        }
       } catch (err) {
         setError('We could not load the admin dashboard right now. Please try again.')
       } finally {
@@ -39,6 +155,18 @@ function AdminDashboardPage() {
     load()
   }, [])
 
+  const pendingReports = useMemo(
+    () => reports.filter((report) => String(report.status).toUpperCase() === 'PENDING'),
+    [reports],
+  )
+
+  const reviewedReports = useMemo(
+    () => reports.filter((report) => String(report.status).toUpperCase() !== 'PENDING'),
+    [reports],
+  )
+
+  const visibleReports = reportTab === 'PENDING' ? pendingReports : reviewedReports
+
   const handleSuspend = async (userId) => {
     try {
       await suspendUser(userId)
@@ -47,8 +175,7 @@ function AdminDashboardPage() {
           user.id === userId ? { ...user, status: 'SUSPENDED' } : user,
         ),
       )
-    } catch (err) {
-      // eslint-disable-next-line no-alert
+    } catch {
       alert('Unable to suspend this user right now.')
     }
   }
@@ -61,47 +188,54 @@ function AdminDashboardPage() {
           user.id === userId ? { ...user, status: 'ACTIVE' } : user,
         ),
       )
-    } catch (err) {
-      // eslint-disable-next-line no-alert
+    } catch {
       alert('Unable to reactivate this user right now.')
-    }
-  }
-
-  const handleDeleteListing = async (listingId) => {
-    try {
-      await deleteListing(listingId)
-      setReports((prev) => prev.filter((report) => report.listingId !== listingId))
-    } catch (err) {
-      // eslint-disable-next-line no-alert
-      alert('Unable to delete this listing right now.')
     }
   }
 
   const handleResolveReport = async (reportId) => {
     try {
-      await resolveReport(reportId)
-      setReports((prev) => prev.filter((report) => report.id !== reportId))
+      const updated = await resolveReport(reportId)
+      setReports((prev) =>
+        prev.map((report) => (report.id === reportId ? { ...report, ...updated } : report)),
+      )
+      if (selectedReportId === reportId) {
+        setSelectedReportDetail((prev) => prev ? { ...prev, status: updated.status, reviewedAt: updated.reviewedAt, reviewedByAdminUsername: updated.reviewedByAdminUsername, canReview: false } : prev)
+      }
+      setReportTab('HISTORY')
     } catch (err) {
-      // eslint-disable-next-line no-alert
-      alert('Unable to resolve this report right now.')
+      alert(err?.response?.data?.message || 'Unable to resolve this report right now.')
     }
   }
 
   const handleDismissReport = async (reportId) => {
     try {
-      await dismissReport(reportId)
-      setReports((prev) => prev.filter((report) => report.id !== reportId))
+      const updated = await dismissReport(reportId)
+      setReports((prev) =>
+        prev.map((report) => (report.id === reportId ? { ...report, ...updated } : report)),
+      )
+      if (selectedReportId === reportId) {
+        setSelectedReportDetail((prev) => prev ? { ...prev, status: updated.status, reviewedAt: updated.reviewedAt, reviewedByAdminUsername: updated.reviewedByAdminUsername, canReview: false } : prev)
+      }
+      setReportTab('HISTORY')
     } catch (err) {
-      // eslint-disable-next-line no-alert
-      alert('Unable to dismiss this report right now.')
+      alert(err?.response?.data?.message || 'Unable to dismiss this report right now.')
     }
   }
 
-  const formatDateTime = (value) => {
-    if (!value) return '—'
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return String(value)
-    return date.toLocaleString()
+  const handleInspectReport = async (reportId) => {
+    setSelectedReportId(reportId)
+    setDetailLoading(true)
+    setDetailError('')
+    try {
+      const detail = await fetchAdminReport(reportId)
+      setSelectedReportDetail(detail)
+    } catch (err) {
+      setDetailError(err?.response?.data?.message || 'Unable to load report evidence right now.')
+      setSelectedReportDetail(null)
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
   const handleCreateCategory = async () => {
@@ -110,8 +244,7 @@ function AdminDashboardPage() {
     try {
       const created = await createCategory({ name })
       setCategories((prev) => [...prev, created])
-    } catch (err) {
-      // eslint-disable-next-line no-alert
+    } catch {
       alert('Unable to create this category right now.')
     }
   }
@@ -124,8 +257,7 @@ function AdminDashboardPage() {
       setCategories((prev) =>
         prev.map((cat) => (cat.id === category.id ? updated : cat)),
       )
-    } catch (err) {
-      // eslint-disable-next-line no-alert
+    } catch {
       alert('Unable to update this category right now.')
     }
   }
@@ -135,8 +267,7 @@ function AdminDashboardPage() {
     try {
       await deleteCategory(categoryId)
       setCategories((prev) => prev.filter((cat) => cat.id !== categoryId))
-    } catch (err) {
-      // eslint-disable-next-line no-alert
+    } catch {
       alert('Unable to delete this category right now.')
     }
   }
@@ -163,11 +294,12 @@ function AdminDashboardPage() {
         <div className="admin-dashboard__title-group">
           <h1>Admin dashboard</h1>
           <p className="admin-dashboard__subtitle">
-            Oversee users, categories, and listings across ShareBite using a
-            focused, structured view.
+            Review platform activity, inspect reported content, and make evidence-based moderation decisions.
           </p>
         </div>
       </div>
+
+      {dashboardWarning && <p className="form-helper">{dashboardWarning}</p>}
 
       {stats && (
         <article className="card">
@@ -175,21 +307,15 @@ function AdminDashboardPage() {
           <div className="admin-dashboard__stats-grid">
             <div className="admin-dashboard__stat-item">
               <span className="admin-dashboard__stat-label">Total users</span>
-              <span className="admin-dashboard__stat-value">
-                {stats.totalUsers ?? 0}
-              </span>
+              <span className="admin-dashboard__stat-value">{stats.totalUsers ?? 0}</span>
             </div>
             <div className="admin-dashboard__stat-item">
               <span className="admin-dashboard__stat-label">Active users</span>
-              <span className="admin-dashboard__stat-value">
-                {stats.activeUsers ?? 0}
-              </span>
+              <span className="admin-dashboard__stat-value">{stats.activeUsers ?? 0}</span>
             </div>
             <div className="admin-dashboard__stat-item">
               <span className="admin-dashboard__stat-label">Total listings</span>
-              <span className="admin-dashboard__stat-value">
-                {stats.totalListings ?? 0}
-              </span>
+              <span className="admin-dashboard__stat-value">{stats.totalListings ?? 0}</span>
             </div>
           </div>
         </article>
@@ -216,27 +342,17 @@ function AdminDashboardPage() {
                     <td>{user.email}</td>
                     <td>{user.role}</td>
                     <td>
-                      {user.status === 'ACTIVE' && (
-                        <span className="badge badge-success">Active</span>
-                      )}
-                      {user.status === 'SUSPENDED' && (
-                        <span className="badge badge-error">Suspended</span>
-                      )}
+                      {user.status === 'ACTIVE' && <span className="badge badge-success">Active</span>}
+                      {user.status === 'SUSPENDED' && <span className="badge badge-error">Suspended</span>}
                     </td>
                     <td>
                       <div className="admin-dashboard__table-actions">
                         {user.status === 'ACTIVE' ? (
-                          <Button
-                            variant="outline"
-                            onClick={() => handleSuspend(user.id)}
-                          >
+                          <Button variant="outline" onClick={() => handleSuspend(user.id)}>
                             Suspend
                           </Button>
                         ) : (
-                          <Button
-                            variant="primary"
-                            onClick={() => handleReactivate(user.id)}
-                          >
+                          <Button variant="primary" onClick={() => handleReactivate(user.id)}>
                             Reactivate
                           </Button>
                         )}
@@ -259,37 +375,20 @@ function AdminDashboardPage() {
             </div>
             {categories.length === 0 ? (
               <p className="admin-dashboard__subtitle">
-                No categories defined yet. Add categories to help donors label
-                their listings clearly.
+                No categories defined yet. Add categories to help donors label their listings clearly.
               </p>
             ) : (
               <div className="admin-dashboard__categories-list">
                 {categories.map((category) => (
-                  <div
-                    key={category.id}
-                    className="admin-dashboard__categories-item"
-                  >
+                  <div key={category.id} className="admin-dashboard__categories-item">
                     <div className="admin-dashboard__categories-main">
-                      <span className="admin-dashboard__categories-name">
-                        {category.name}
-                      </span>
-                      {typeof category.usageCount === 'number' && (
-                        <span className="admin-dashboard__categories-meta">
-                          Used in {category.usageCount} listings
-                        </span>
-                      )}
+                      <span className="admin-dashboard__categories-name">{category.name}</span>
                     </div>
                     <div className="admin-dashboard__table-actions">
-                      <Button
-                        variant="outline"
-                        onClick={() => handleUpdateCategory(category)}
-                      >
+                      <Button variant="outline" onClick={() => handleUpdateCategory(category)}>
                         Edit
                       </Button>
-                      <Button
-                        variant="danger"
-                        onClick={() => handleDeleteCategory(category.id)}
-                      >
+                      <Button variant="danger" onClick={() => handleDeleteCategory(category.id)}>
                         Delete
                       </Button>
                     </div>
@@ -298,64 +397,152 @@ function AdminDashboardPage() {
               </div>
             )}
           </article>
+        </div>
+      </div>
 
-          <article className="card">
+      <article className="card">
+        <div className="admin-dashboard__reports-header">
+          <div>
             <h2 className="admin-dashboard__section-title">Reports moderation</h2>
-            {reports.length === 0 ? (
-              <p className="admin-dashboard__subtitle">
-                There are no open reports right now.
-              </p>
-            ) : (
-              <div className="admin-dashboard__table-wrapper">
-                <table className="admin-dashboard__table">
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Target</th>
-                      <th>Reported by</th>
-                      <th>Reason</th>
-                      <th>Details</th>
-                      <th>Created</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((report) => (
-                      <tr key={report.id}>
-                        <td>{report.type}</td>
-                        <td>
-                          {report.type === 'LISTING'
-                            ? (report.listingTitle || report.listingId || 'Listing')
-                            : (`Request ${report.requestId || '—'}`)}
-                        </td>
-                        <td>{report.reporterUsername || 'Unknown'}</td>
-                        <td>{report.reason || 'No details provided'}</td>
-                        <td>{report.details || '—'}</td>
-                        <td>{formatDateTime(report.createdAt)}</td>
-                        <td>
-                          <div className="admin-dashboard__table-actions">
+            <p className="admin-dashboard__subtitle">
+              Open a report to inspect the actual listing or conversation evidence before making a decision.
+            </p>
+          </div>
+          <div className="admin-dashboard__report-tabs">
+            <Button
+              variant={reportTab === 'PENDING' ? 'primary' : 'outline'}
+              onClick={() => setReportTab('PENDING')}
+            >
+              Pending ({pendingReports.length})
+            </Button>
+            <Button
+              variant={reportTab === 'HISTORY' ? 'primary' : 'outline'}
+              onClick={() => setReportTab('HISTORY')}
+            >
+              History ({reviewedReports.length})
+            </Button>
+          </div>
+        </div>
+
+        {visibleReports.length === 0 ? (
+          <p className="admin-dashboard__subtitle">
+            {reportTab === 'PENDING'
+              ? 'There are no pending reports right now.'
+              : 'There is no reviewed report history yet.'}
+          </p>
+        ) : (
+          <div className="admin-dashboard__table-wrapper">
+            <table className="admin-dashboard__table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Target</th>
+                  <th>Reporter</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleReports.map((report) => (
+                  <tr key={report.id}>
+                    <td>{report.type}</td>
+                    <td>{report.type === 'LISTING' ? (report.listingTitle || report.listingId || 'Listing') : `Request ${report.requestId || '—'}`}</td>
+                    <td>{report.reporterUsername || 'Unknown'}</td>
+                    <td>{report.reason || '—'}</td>
+                    <td>{report.status}</td>
+                    <td>{formatDateTime(report.createdAt)}</td>
+                    <td>
+                      <div className="admin-dashboard__table-actions">
+                        <Button variant="outline" onClick={() => handleInspectReport(report.id)}>
+                          View evidence
+                        </Button>
+                        {report.status === 'PENDING' && (
+                          <>
                             <Button variant="primary" onClick={() => handleResolveReport(report.id)}>
                               Resolve
                             </Button>
-                            <Button variant="outline" onClick={() => handleDismissReport(report.id)}>
+                            <Button variant="danger" onClick={() => handleDismissReport(report.id)}>
                               Dismiss
                             </Button>
-                            {report.type === 'LISTING' && report.listingId && (
-                              <Button variant="danger" onClick={() => handleDeleteListing(report.listingId)}>
-                                Delete listing
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </article>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </article>
+
+      <article className="card">
+        <div className="admin-dashboard__evidence-head">
+          <h2 className="admin-dashboard__section-title">Moderation evidence</h2>
+          {selectedReportDetail?.status && (
+            <span className={`badge ${selectedReportDetail.status === 'PENDING' ? 'badge-warning' : 'badge-info'}`}>
+              {selectedReportDetail.status}
+            </span>
+          )}
         </div>
-      </div>
+
+        {!selectedReportId && !detailLoading && (
+          <p className="admin-dashboard__subtitle">
+            Choose a report from the table above to inspect its evidence.
+          </p>
+        )}
+
+        {detailLoading && <p>Loading report evidence…</p>}
+        {detailError && <p className="form-error">{detailError}</p>}
+
+        {selectedReportDetail && !detailLoading && !detailError && (
+          <div className="admin-dashboard__evidence-layout">
+            <div className="admin-dashboard__evidence-column">
+              <div className="admin-dashboard__evidence-block">
+                <h4>Report summary</h4>
+                <div className="admin-dashboard__evidence-grid">
+                  <div><span>Report ID</span><strong>{selectedReportDetail.id}</strong></div>
+                  <div><span>Type</span><strong>{selectedReportDetail.type}</strong></div>
+                  <div><span>Created</span><strong>{formatDateTime(selectedReportDetail.createdAt)}</strong></div>
+                  <div><span>Reviewed</span><strong>{formatDateTime(selectedReportDetail.reviewedAt)}</strong></div>
+                  <div><span>Reviewed by</span><strong>{selectedReportDetail.reviewedByAdminUsername || '—'}</strong></div>
+                </div>
+                <div className="admin-dashboard__evidence-text">
+                  <span>Reason</span>
+                  <p>{selectedReportDetail.reason}</p>
+                </div>
+                <div className="admin-dashboard__evidence-text">
+                  <span>Details</span>
+                  <p>{selectedReportDetail.details || 'No extra details provided.'}</p>
+                </div>
+              </div>
+
+              <EvidenceUser user={selectedReportDetail.reporter} label="Reporter" />
+            </div>
+
+            <div className="admin-dashboard__evidence-column">
+              {selectedReportDetail.type === 'LISTING' ? (
+                <ListingEvidence listingEvidence={selectedReportDetail.listingEvidence} />
+              ) : (
+                <RequestEvidence requestEvidence={selectedReportDetail.requestEvidence} />
+              )}
+
+              {selectedReportDetail.canReview && (
+                <div className="admin-dashboard__detail-actions">
+                  <Button variant="primary" onClick={() => handleResolveReport(selectedReportDetail.id)}>
+                    Resolve report
+                  </Button>
+                  <Button variant="danger" onClick={() => handleDismissReport(selectedReportDetail.id)}>
+                    Dismiss report
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </article>
     </section>
   )
 }

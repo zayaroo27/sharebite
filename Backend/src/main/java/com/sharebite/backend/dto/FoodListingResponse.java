@@ -14,6 +14,12 @@ public record FoodListingResponse(
     String status,
     LocalDateTime createdAt,
     String donorName,
+    UUID categoryId,
     String categoryName,
-    String imageUrl
+    String imageUrl,
+    String donorUsername,
+    String donorDisplayName,
+    String donorOrganisationName,
+    LocalDateTime donorCreatedAt,
+    String donorProfileImageUrl
 ) {}

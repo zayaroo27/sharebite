@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { fetchListingById } from '../services/listingService.js'
 import { createRequest } from '../services/requestService.js'
+import { reportListing } from '../services/reportService.js'
 import { useAuth } from '../hooks/useAuth.js'
+import Avatar from '../components/Avatar.jsx'
 import Button from '../components/Button.jsx'
+import ReportModal from '../components/ReportModal.jsx'
 import '../styles/listing-details.css'
 
 function ListingDetailsPage() {
@@ -11,6 +14,10 @@ function ListingDetailsPage() {
   const [listing, setListing] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportError, setReportError] = useState('')
+  const [reportFeedback, setReportFeedback] = useState('')
   const { user, isAuthenticated } = useAuth()
 
   useEffect(() => {
@@ -39,6 +46,33 @@ function ListingDetailsPage() {
     }
   }
 
+  const handleSubmitReport = async ({ reason, details }) => {
+    setReportSubmitting(true)
+    setReportError('')
+    try {
+      await reportListing(id, reason, details)
+      setReportFeedback('Your listing report has been submitted for admin review.')
+      setReportModalOpen(false)
+    } catch (err) {
+      setReportError(err?.response?.data?.message || 'Unable to submit report right now.')
+    } finally {
+      setReportSubmitting(false)
+    }
+  }
+
+  const formatDate = (value, options) => {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return String(value)
+    return new Intl.DateTimeFormat('en-US', options).format(date)
+  }
+
+  const getStatusLabel = (value) => {
+    if (!value) return ''
+    const normalized = String(value).replaceAll('_', ' ').toLowerCase()
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+  }
+
   if (loading) {
     return (
       <section className="listing-details-page">
@@ -61,12 +95,26 @@ function ListingDetailsPage() {
     quantity,
     expiryDate,
     location,
+    status,
     categoryName,
     imageUrl,
     donorName,
+    donorUsername,
+    donorDisplayName,
+    donorOrganisationName,
+    donorCreatedAt,
+    donorProfileImageUrl,
   } = listing
 
   const isRecipient = user?.role === 'RECIPIENT'
+  const canReportListing = isAuthenticated && user?.role !== 'ADMIN'
+  const donorPrimaryName = donorDisplayName || donorUsername || donorName || 'ShareBite donor'
+  const donorSecondaryName = donorDisplayName && donorUsername ? `@${donorUsername}` : ''
+  const listingStatusLabel = getStatusLabel(status)
+  const memberSince = formatDate(donorCreatedAt, {
+    month: 'long',
+    year: 'numeric',
+  })
 
   return (
     <section className="listing-details-page">
@@ -84,49 +132,115 @@ function ListingDetailsPage() {
         </article>
 
         <div className="listing-details__sidebar">
-          <article className="card">
+          <article className="card listing-details__main-card">
             <header className="listing-details__content">
+              <div className="listing-details__eyebrow-row">
+                {listingStatusLabel && (
+                  <span className="badge badge-info listing-details__status-pill">{listingStatusLabel}</span>
+                )}
+                {categoryName && (
+                  <span className="badge badge-category listing-details__category-pill">{categoryName}</span>
+                )}
+              </div>
+
               <div className="listing-details__title-row">
                 <h1 className="listing-details__title">{title}</h1>
                 {quantity && (
-                  <span className="badge badge-quantity">{quantity}</span>
+                  <span className="badge badge-quantity listing-details__quantity-pill">{quantity}</span>
                 )}
               </div>
+
               <div className="listing-details__meta-row">
-                {categoryName && (
-                  <span className="badge badge-category">{categoryName}</span>
-                )}
                 {location && (
                   <span className="listing-details__meta-item">
-                    <span aria-hidden="true">📍</span>
+                    <span className="listing-details__meta-icon" aria-hidden="true">📍</span>
                     <span>{location}</span>
                   </span>
                 )}
                 {expiryDate && (
                   <span className="listing-details__meta-item">
-                    <span aria-hidden="true">⏰</span>
-                    <span>Use by {expiryDate}</span>
+                    <span className="listing-details__meta-icon" aria-hidden="true">⏰</span>
+                    <span>Use by {formatDate(expiryDate, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}</span>
                   </span>
                 )}
               </div>
             </header>
 
             {description && (
-              <section>
-                <h2 className="listing-details__section-title">Description</h2>
+              <section className="listing-details__description-block">
+                <p className="listing-details__section-label">Description</p>
                 <p className="listing-details__description">{description}</p>
               </section>
             )}
           </article>
 
-          {donorName && (
-            <article className="card">
-              <h2 className="listing-details__section-title">Donor</h2>
-              <p className="listing-details__donor-name">{donorName}</p>
+          {(donorName || donorUsername || donorDisplayName) && (
+            <article className="card listing-details__trust-card">
+              <div className="listing-details__trust-head">
+                <Avatar
+                  className="listing-details__avatar"
+                  name={donorPrimaryName}
+                  imageUrl={donorProfileImageUrl}
+                  size={48}
+                />
+                <div className="listing-details__trust-copy">
+                  <p className="listing-details__section-label">Donor</p>
+                  <h2 className="listing-details__donor-name">{donorPrimaryName}</h2>
+                  {donorSecondaryName && (
+                    <p className="listing-details__donor-handle">{donorSecondaryName}</p>
+                  )}
+                </div>
+              </div>
+              {donorOrganisationName && (
+                <p className="listing-details__trust-line">{donorOrganisationName}</p>
+              )}
+              {memberSince && (
+                <p className="listing-details__trust-line">Member since {memberSince}</p>
+              )}
+              {!donorOrganisationName && !memberSince && (
+                <p className="listing-details__helper">
+                  This donor can be contacted through approved requests and request-based messages.
+                </p>
+              )}
             </article>
           )}
 
-          <article className="card">
+          <article className="card listing-details__secondary-card listing-details__report-card">
+            <h2 className="listing-details__section-title">Need to report this listing?</h2>
+            <p className="listing-details__helper">
+              If this listing looks misleading, unsafe, abusive, or otherwise inappropriate,
+              you can send a report for admin review.
+            </p>
+            {canReportListing ? (
+              <Button
+                type="button"
+                variant="danger"
+                className="listing-details__request-btn"
+                onClick={() => {
+                  setReportError('')
+                  setReportFeedback('')
+                  setReportModalOpen(true)
+                }}
+              >
+                Report listing
+              </Button>
+            ) : isAuthenticated ? (
+              <p className="listing-details__helper">
+                Admins review reports from the dashboard instead of filing listing reports.
+              </p>
+            ) : (
+              <p className="listing-details__helper">
+                <Link to="/login">Log in</Link> to report this listing.
+              </p>
+            )}
+            {reportFeedback && <p className="form-helper listing-details__feedback">{reportFeedback}</p>}
+          </article>
+
+          <article className="card listing-details__secondary-card listing-details__request-card">
             <h2 className="listing-details__section-title">Request this listing</h2>
             <p className="listing-details__helper">
               If you are a recipient and this listing matches your needs, you
@@ -158,6 +272,21 @@ function ListingDetailsPage() {
           </article>
         </div>
       </div>
+
+      <ReportModal
+        isOpen={reportModalOpen}
+        title="Report listing"
+        subtitle="Explain what is wrong with this listing so an admin can review the evidence."
+        targetLabel={title ? `${title}${status ? ` (${status})` : ''}` : 'Selected listing'}
+        submitting={reportSubmitting}
+        submitError={reportError}
+        onClose={() => {
+          if (reportSubmitting) return
+          setReportModalOpen(false)
+          setReportError('')
+        }}
+        onSubmit={handleSubmitReport}
+      />
     </section>
   )
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import TextInput from '../components/TextInput.jsx'
-import Button from '../components/Button.jsx'
-import { createListing, fetchCategories } from '../services/listingService.js'
+import ListingForm from '../components/ListingForm.jsx'
+import { createListing, fetchCategories, uploadListingImage } from '../services/listingService.js'
+import '../styles/listing-editor.css'
 
 function CreateListingPage() {
   const [form, setForm] = useState({
@@ -14,6 +14,7 @@ function CreateListingPage() {
     categoryId: '',
   })
   const [categories, setCategories] = useState([])
+  const [imageFile, setImageFile] = useState(null)
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -57,7 +58,7 @@ function CreateListingPage() {
 
     setSubmitting(true)
     try {
-      await createListing({
+      const createdListing = await createListing({
         title: form.title.trim(),
         description: form.description.trim(),
         quantity: form.quantity.trim(),
@@ -65,6 +66,10 @@ function CreateListingPage() {
         location: form.location.trim(),
         categoryId: form.categoryId || null,
       })
+
+      if (imageFile && createdListing?.id) {
+        await uploadListingImage(createdListing.id, imageFile)
+      }
 
       navigate('/dashboard/donor', { replace: true })
     } catch (error) {
@@ -75,106 +80,29 @@ function CreateListingPage() {
   }
 
   return (
-    <section>
-      <div className="card card--elevated">
+    <section className="listing-editor-page">
+      <div className="card card--elevated listing-editor-page__card">
         <header className="card__header">
           <h1 className="card__title">Create listing</h1>
           <p className="card__subtitle">
             Share details about your available food so recipients can request it.
           </p>
         </header>
-
-        <form onSubmit={handleSubmit} noValidate>
-          <TextInput
-            id="title"
-            name="title"
-            label="Title"
-            value={form.title}
-            onChange={handleChange}
-            placeholder="Fresh cooked rice"
-            error={errors.title}
-            required
-          />
-
-          <div className="form-field">
-            <label className="form-label" htmlFor="description">
-              Description <span aria-hidden="true">*</span>
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              className={`form-input ${errors.description ? 'form-input--error' : ''}`.trim()}
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Add food type, condition, pickup note, etc."
-              rows={4}
-              required
-            />
-            {errors.description && <p className="form-error">{errors.description}</p>}
-          </div>
-
-          <TextInput
-            id="quantity"
-            name="quantity"
-            label="Quantity"
-            value={form.quantity}
-            onChange={handleChange}
-            placeholder="10 meal boxes"
-            error={errors.quantity}
-            required
-          />
-
-          <TextInput
-            id="expiryDate"
-            name="expiryDate"
-            label="Expiry date"
-            type="date"
-            value={form.expiryDate}
-            onChange={handleChange}
-            error={errors.expiryDate}
-            required
-          />
-
-          <TextInput
-            id="location"
-            name="location"
-            label="Pickup location"
-            value={form.location}
-            onChange={handleChange}
-            placeholder="Mirpur DOHS"
-            error={errors.location}
-            required
-          />
-
-          <div className="form-field">
-            <label className="form-label" htmlFor="categoryId">Category (optional)</label>
-            <select
-              id="categoryId"
-              name="categoryId"
-              className="form-input"
-              value={form.categoryId}
-              onChange={handleChange}
-            >
-              <option value="">No category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {submitError && <p className="form-error">{submitError}</p>}
-
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <Button type="submit" variant="secondary" disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create listing'}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => navigate('/dashboard/donor')}>
-              Cancel
-            </Button>
-          </div>
-        </form>
+        <ListingForm
+          form={form}
+          errors={errors}
+          categories={categories}
+          submitLabel="Create listing"
+          submittingLabel="Creating..."
+          submitting={submitting}
+          submitError={submitError}
+          onChange={handleChange}
+          onSubmit={handleSubmit}
+          onCancel={() => navigate('/dashboard/donor')}
+          imageFile={imageFile}
+          onImageChange={setImageFile}
+          showImageField
+        />
       </div>
     </section>
   )

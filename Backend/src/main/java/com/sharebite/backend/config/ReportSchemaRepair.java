@@ -20,11 +20,16 @@ public class ReportSchemaRepair {
 
     @EventListener(ApplicationReadyEvent.class)
     public void repairReportSchema() {
-        if (!reportsTableExists()) {
+        if (!tableExists("reports")) {
             logger.info("Skipping report schema repair because the reports table does not exist yet.");
-            return;
+        } else {
+            repairReportsTable();
         }
 
+        repairLifecycleStatusConstraints();
+    }
+
+    private void repairReportsTable() {
         runStatement(
                 "UPDATE reports SET type = 'REQUEST' WHERE type = 'CONVERSATION'",
                 "Updated legacy report type values."
@@ -36,6 +41,10 @@ public class ReportSchemaRepair {
         runStatement(
                 "ALTER TABLE reports ADD COLUMN IF NOT EXISTS details TEXT",
                 "Ensured reports.details column exists."
+        );
+        runStatement(
+                "ALTER TABLE reports ADD COLUMN IF NOT EXISTS evidence_snapshot TEXT",
+                "Ensured reports.evidence_snapshot column exists."
         );
         runStatement(
                 "ALTER TABLE reports DROP CONSTRAINT IF EXISTS chk_reports_target_consistency",
@@ -79,17 +88,86 @@ public class ReportSchemaRepair {
         );
     }
 
-    private boolean reportsTableExists() {
+    private void repairLifecycleStatusConstraints() {
+        if (tableExists("food_listings")) {
+            runStatement(
+                    """
+                    DO $$
+                    DECLARE constraint_name text;
+                    BEGIN
+                        SELECT con.conname INTO constraint_name
+                        FROM pg_constraint con
+                        JOIN pg_class rel ON rel.oid = con.conrelid
+                        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+                        WHERE rel.relname = 'food_listings'
+                          AND nsp.nspname = current_schema()
+                          AND con.contype = 'c'
+                          AND pg_get_constraintdef(con.oid) ILIKE '%status%'
+                        LIMIT 1;
+
+                        IF constraint_name IS NOT NULL THEN
+                            EXECUTE format('ALTER TABLE food_listings DROP CONSTRAINT %I', constraint_name);
+                        END IF;
+                    END $$;
+                    """,
+                    "Dropped legacy food_listings status constraint if present."
+            );
+            runStatement(
+                    """
+                    ALTER TABLE food_listings
+                        ADD CONSTRAINT food_listings_status_check
+                        CHECK (status IN ('AVAILABLE', 'RESERVED', 'COMPLETED', 'EXPIRED'))
+                    """,
+                    "Applied food_listings status constraint."
+            );
+        }
+
+        if (tableExists("listing_requests")) {
+            runStatement(
+                    """
+                    DO $$
+                    DECLARE constraint_name text;
+                    BEGIN
+                        SELECT con.conname INTO constraint_name
+                        FROM pg_constraint con
+                        JOIN pg_class rel ON rel.oid = con.conrelid
+                        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+                        WHERE rel.relname = 'listing_requests'
+                          AND nsp.nspname = current_schema()
+                          AND con.contype = 'c'
+                          AND pg_get_constraintdef(con.oid) ILIKE '%status%'
+                        LIMIT 1;
+
+                        IF constraint_name IS NOT NULL THEN
+                            EXECUTE format('ALTER TABLE listing_requests DROP CONSTRAINT %I', constraint_name);
+                        END IF;
+                    END $$;
+                    """,
+                    "Dropped legacy listing_requests status constraint if present."
+            );
+            runStatement(
+                    """
+                    ALTER TABLE listing_requests
+                        ADD CONSTRAINT listing_requests_status_check
+                        CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELED', 'COMPLETED'))
+                    """,
+                    "Applied listing_requests status constraint."
+            );
+        }
+    }
+
+    private boolean tableExists(String tableName) {
         Boolean exists = jdbcTemplate.queryForObject(
                 """
                 SELECT EXISTS (
                     SELECT 1
                     FROM information_schema.tables
                     WHERE table_schema = current_schema()
-                      AND table_name = 'reports'
+                      AND table_name = ?
                 )
                 """,
-                Boolean.class
+                Boolean.class,
+                tableName
         );
         return Boolean.TRUE.equals(exists);
     }

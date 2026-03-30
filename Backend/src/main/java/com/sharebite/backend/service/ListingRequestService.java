@@ -91,8 +91,9 @@ public class ListingRequestService {
         User donor = getCurrentUser();
         ListingRequest request = listingRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Request not found"));
+        FoodListing listing = request.getListing();
 
-        if (!request.getListing().getDonor().getId().equals(donor.getId())) {
+        if (!listing.getDonor().getId().equals(donor.getId())) {
             throw new ForbiddenException("You can only manage requests for your own listings");
         }
 
@@ -100,29 +101,55 @@ public class ListingRequestService {
             throw new BadRequestException("Request must be pending to approve");
         }
 
+        if (listing.getStatus() != ListingStatus.AVAILABLE) {
+            throw new BadRequestException("Listing is not available for approval");
+        }
+
         // Check no other approved for this listing
-        if (listingRequestRepository.findByListingIdAndStatus(request.getListing().getId(), RequestStatus.APPROVED).isPresent()) {
+        if (listingRequestRepository.findByListingIdAndStatus(listing.getId(), RequestStatus.APPROVED).isPresent()) {
             throw new ConflictException("This listing already has an approved request");
         }
 
+        LocalDateTime decisionTime = LocalDateTime.now();
         request.setStatus(RequestStatus.APPROVED);
-        request.setDecisionDate(LocalDateTime.now());
+        request.setDecisionDate(decisionTime);
 
-        FoodListing listing = request.getListing();
         listing.setStatus(ListingStatus.RESERVED);
-        foodListingRepository.save(listing);
 
-        ListingRequest saved = listingRequestRepository.save(request);
+        List<ListingRequest> competingPendingRequests =
+                listingRequestRepository.findByListingIdAndStatusAndIdNot(
+                        listing.getId(),
+                        RequestStatus.PENDING,
+                        request.getId()
+                );
+
+        competingPendingRequests.forEach(otherRequest -> {
+            otherRequest.setStatus(RequestStatus.REJECTED);
+            otherRequest.setDecisionDate(decisionTime);
+        });
+
+        listingRequestRepository.save(request);
+        listingRequestRepository.saveAll(competingPendingRequests);
+        foodListingRepository.save(listing);
 
         // Create notification for recipient
         notificationService.createNotification(
                 request.getRecipient(),
                 "Request approved",
-                "Your request for '" + request.getListing().getTitle() + "' has been approved.",
+                "Your request for '" + listing.getTitle() + "' has been approved.",
                 NotificationType.REQUEST_APPROVED
         );
 
-        return mapToResponse(saved);
+        competingPendingRequests.forEach(otherRequest ->
+                notificationService.createNotification(
+                        otherRequest.getRecipient(),
+                        "Request rejected",
+                        "Your request for '" + listing.getTitle() + "' was not selected.",
+                        NotificationType.REQUEST_REJECTED
+                )
+        );
+
+        return mapToResponse(request);
     }
 
     @Transactional
@@ -244,7 +271,9 @@ public class ListingRequestService {
                 request.getDecisionDate(),
                 request.getCompletedDate(),
                 request.getRecipient().getUsername(),
-                request.getListing().getDonor().getUsername()
+                request.getListing().getDonor().getUsername(),
+                request.getRecipient().getProfileImageUrl(),
+                request.getListing().getDonor().getProfileImageUrl()
         );
     }
 }

@@ -7,6 +7,8 @@ import com.sharebite.backend.entity.FoodListing;
 import com.sharebite.backend.entity.ListingStatus;
 import com.sharebite.backend.entity.NotificationType;
 import com.sharebite.backend.entity.User;
+import com.sharebite.backend.repository.ListingRequestRepository;
+import com.sharebite.backend.repository.ReportRepository;
 import com.sharebite.backend.repository.CategoryRepository;
 import com.sharebite.backend.exception.BadRequestException;
 import com.sharebite.backend.exception.ForbiddenException;
@@ -41,6 +43,12 @@ public class FoodListingService {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private ListingRequestRepository listingRequestRepository;
+
+    @Autowired
+    private ReportRepository reportRepository;
 
     public FoodListingResponse createListing(FoodListingRequest request) {
         User currentUser = getCurrentUser();
@@ -180,6 +188,16 @@ public class FoodListingService {
             throw new ForbiddenException("You can only delete your own listings");
         }
 
+        boolean hasListingReports = !reportRepository.findByListingId(listingId).isEmpty();
+        boolean hasRequestReports = !reportRepository.findRequestReportsForListingId(listingId).isEmpty();
+        if (hasListingReports || hasRequestReports) {
+            throw new BadRequestException("You cannot delete a listing that is referenced by moderation reports");
+        }
+
+        if (!listingRequestRepository.findByListingId(listingId).isEmpty()) {
+            throw new BadRequestException("You cannot delete a listing that already has request history");
+        }
+
         foodListingRepository.delete(listing);
     }
 
@@ -211,7 +229,9 @@ public class FoodListingService {
     }
 
     private FoodListingResponse mapToResponse(FoodListing listing) {
+        UUID categoryId = listing.getCategory() != null ? listing.getCategory().getId() : null;
         String categoryName = listing.getCategory() != null ? listing.getCategory().getName() : null;
+        User donor = listing.getDonor();
         return new FoodListingResponse(
                 listing.getId(),
                 listing.getTitle(),
@@ -221,9 +241,15 @@ public class FoodListingService {
                 listing.getLocation(),
                 listing.getStatus().name(),
                 listing.getCreatedAt(),
-                listing.getDonor().getUsername(),
+                donor.getUsername(),
+                categoryId,
                 categoryName,
-                listing.getImageUrl()
+                listing.getImageUrl(),
+                donor.getUsername(),
+                donor.getDisplayName(),
+                donor.getOrganisationName(),
+                donor.getCreatedAt(),
+                donor.getProfileImageUrl()
         );
     }
 }

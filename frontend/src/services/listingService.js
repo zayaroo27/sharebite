@@ -1,7 +1,21 @@
 import api from './api.js'
 
-export async function fetchListings() {
-  const response = await api.get('/listings')
+export async function fetchListings(filters = {}) {
+  const params = {}
+
+  if (filters.keyword?.trim()) {
+    params.keyword = filters.keyword.trim()
+  }
+
+  if (filters.categoryId) {
+    params.categoryId = filters.categoryId
+  }
+
+  if (filters.location?.trim()) {
+    params.location = filters.location.trim()
+  }
+
+  const response = await api.get('/listings', { params })
   return response.data
 }
 

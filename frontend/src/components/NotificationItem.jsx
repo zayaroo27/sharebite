@@ -11,6 +11,19 @@ function getTypeDotClass(type) {
   return 'notification-item__type-dot notification-item__type-dot--info'
 }
 
+function formatNotificationDate(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 function NotificationItem({ notification, onMarkRead }) {
   if (!notification) return null
 
@@ -26,7 +39,7 @@ function NotificationItem({ notification, onMarkRead }) {
       <div className="notification-item__body">
         <div className="notification-item__title-row">
           <h2 className="notification-item__title">{title}</h2>
-          {date && <span className="notification-item__date">{date}</span>}
+          {date && <span className="notification-item__date">{formatNotificationDate(date)}</span>}
         </div>
         {message && (
           <p className="notification-item__message">{message}</p>

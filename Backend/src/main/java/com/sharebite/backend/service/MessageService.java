@@ -111,7 +111,8 @@ public class MessageService {
                 message.getContent(),
                 message.getTimestamp(),
                 message.getSender().getUsername(),
-                message.getSender().getRole().name()
+                message.getSender().getRole().name(),
+                message.getSender().getProfileImageUrl()
         );
     }
 }

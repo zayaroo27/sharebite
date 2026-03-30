@@ -1,19 +1,38 @@
 import api from './api.js'
 
 export async function fetchAdminDashboard() {
-  const [usersResponse, statsResponse, categoriesResponse, reportsResponse] = await Promise.all([
+  const [usersResponse, statsResponse, categoriesResponse, reportsResponse] = await Promise.allSettled([
     api.get('/admin/users'),
     api.get('/admin/stats'),
     api.get('/categories'),
     api.get('/admin/reports'),
   ])
 
-  return {
-    users: usersResponse.data ?? [],
-    categories: categoriesResponse.data ?? [],
-    reports: reportsResponse.data ?? [],
-    stats: statsResponse.data ?? null,
+  const usersFailed = usersResponse.status === 'rejected'
+  const statsFailed = statsResponse.status === 'rejected'
+
+  if (usersFailed && statsFailed) {
+    throw usersResponse.reason || statsResponse.reason || new Error('Unable to load admin dashboard')
   }
+
+  const sectionErrors = []
+  if (usersFailed) sectionErrors.push('users')
+  if (statsFailed) sectionErrors.push('stats')
+  if (categoriesResponse.status === 'rejected') sectionErrors.push('categories')
+  if (reportsResponse.status === 'rejected') sectionErrors.push('reports')
+
+  return {
+    users: usersResponse.status === 'fulfilled' ? (usersResponse.value.data ?? []) : [],
+    categories: categoriesResponse.status === 'fulfilled' ? (categoriesResponse.value.data ?? []) : [],
+    reports: reportsResponse.status === 'fulfilled' ? (reportsResponse.value.data ?? []) : [],
+    stats: statsResponse.status === 'fulfilled' ? (statsResponse.value.data ?? null) : null,
+    sectionErrors,
+  }
+}
+
+export async function fetchAdminReport(reportId) {
+  const response = await api.get(`/admin/reports/${reportId}`)
+  return response.data
 }
 
 export async function suspendUser(userId) {

@@ -8,5 +8,6 @@ public record MessageResponse(
     String content,
     LocalDateTime timestamp,
     String senderUsername,
-    String senderRole
+    String senderRole,
+    String senderProfileImageUrl
 ) {}

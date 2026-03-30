@@ -10,6 +10,7 @@ function LoginPage() {
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { setUser } = useAuth()
@@ -48,17 +49,19 @@ function LoginPage() {
   }
 
   return (
-    <section>
-      <div className="card card--elevated">
-        <header className="card__header">
-          <h1 className="card__title">Welcome back</h1>
-          <p className="card__subtitle">
-            Log in to ShareBite to connect surplus food from donors with people
-            and communities who need it.
+    <section className="auth-page auth-page--login">
+      <div className="card card--elevated auth-card">
+        <header className="card__header auth-card__header">
+          <span className="auth-card__eyebrow">Share surplus food with confidence</span>
+          <h1 className="card__title auth-card__title">Welcome back</h1>
+          <p className="card__subtitle auth-card__subtitle">
+            Log in to ShareBite to manage food listings, requests, and conversations with your community.
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} noValidate>
+        <div className="auth-card__divider" aria-hidden="true" />
+
+        <form onSubmit={handleSubmit} noValidate className="auth-form">
           <TextInput
             id="username"
             name="username"
@@ -70,34 +73,60 @@ function LoginPage() {
             required
           />
 
-          <TextInput
-            id="password"
-            name="password"
-            label="Password"
-            type="password"
-            value={form.password}
-            onChange={handleChange}
-            placeholder="Enter your password"
-            error={errors.password}
-            required
-          />
+          <div className="form-field">
+            <div className="auth-form__label-row">
+              <label className="form-label" htmlFor="password">
+                Password <span aria-hidden="true">*</span>
+              </label>
+              <button
+                type="button"
+                className="auth-form__toggle"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <span aria-hidden="true">{showPassword ? '◉' : '○'}</span>
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              className={`form-input ${errors.password ? 'form-input--error' : ''}`.trim()}
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Enter your password"
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={errors.password ? 'password-error' : undefined}
+              required
+            />
+            {errors.password && (
+              <p id="password-error" className="form-error">
+                {errors.password}
+              </p>
+            )}
+          </div>
 
           {submitError && <p className="form-error">{submitError}</p>}
 
           <Button
             type="submit"
             variant="primary"
-            className="w-full"
+            className="w-full auth-card__submit"
             disabled={submitting}
           >
             {submitting ? 'Logging in...' : 'Log in'}
           </Button>
         </form>
 
-        <p className="form-helper" style={{ marginTop: '0.75rem' }}>
-          New to ShareBite?{' '}
-          <Link to="/register">Create an account</Link>.
-        </p>
+        <footer className="auth-card__footer">
+          <p className="form-helper auth-card__footer-copy">
+            New to ShareBite?
+          </p>
+          <Link className="auth-card__footer-link" to="/register">
+            Create an account
+          </Link>
+        </footer>
       </div>
     </section>
   )

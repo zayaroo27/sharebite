@@ -18,8 +18,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.regex.Pattern;
+
 @Service
 public class AuthServiceImpl implements AuthService {
+
+    private static final String PASSWORD_POLICY_MESSAGE =
+            "Password must be at least 8 characters long and include at least one letter and one number.";
+    private static final Pattern PASSWORD_POLICY_PATTERN =
+            Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d).{8,}$");
 
     @Autowired
     private UserRepository userRepository;
@@ -44,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
         if (request.role() == Role.ADMIN) {
             throw new BadRequestException("Admin accounts cannot be created through public registration");
         }
+        validatePasswordStrength(request.password());
 
         User user = new User();
         user.setUsername(request.username());
@@ -54,7 +62,13 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         String token = jwtUtil.generateTokenFromUsername(user.getUsername());
-        UserDto userDto = new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getRole());
+        UserDto userDto = new UserDto(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole(),
+                user.getProfileImageUrl()
+        );
 
         return new AuthResponse(token, userDto);
     }
@@ -71,7 +85,13 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(request.username())
             .or(() -> userRepository.findByEmail(request.username()))
             .orElseThrow();
-        UserDto userDto = new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getRole());
+        UserDto userDto = new UserDto(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole(),
+                user.getProfileImageUrl()
+        );
 
         return new AuthResponse(token, userDto);
     }
@@ -81,7 +101,13 @@ public class AuthServiceImpl implements AuthService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         User user = userRepository.findByUsername(username).orElseThrow();
-        return new UserDto(user.getId(), user.getUsername(), user.getEmail(), user.getRole());
+        return new UserDto(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole(),
+                user.getProfileImageUrl()
+        );
     }
 
     @Override
@@ -89,5 +115,11 @@ public class AuthServiceImpl implements AuthService {
         // For stateless JWT, logout is handled on the client by discarding the token.
         // Clearing the SecurityContext ensures the current request has no authenticated user.
         SecurityContextHolder.clearContext();
+    }
+
+    private void validatePasswordStrength(String password) {
+        if (password == null || !PASSWORD_POLICY_PATTERN.matcher(password).matches()) {
+            throw new BadRequestException(PASSWORD_POLICY_MESSAGE);
+        }
     }
 }

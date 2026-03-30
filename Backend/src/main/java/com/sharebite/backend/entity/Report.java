@@ -41,6 +41,10 @@ public class Report {
     @Column
     private LocalDateTime reviewedAt;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String evidenceSnapshot;
+
     @ManyToOne
     @JoinColumn(name = "reporter_id", nullable = false)
     private User reporter;
