@@ -19,7 +19,7 @@ function NavBar() {
   const getDashboardLink = () => {
     if (role === 'DONOR') return { to: '/dashboard/donor', label: 'Donor Dashboard' }
     if (role === 'RECIPIENT') return { to: '/dashboard/recipient', label: 'Recipient Dashboard' }
-    if (role === 'ADMIN') return { to: '/dashboard/admin', label: 'Admin' }
+    if (role === 'ADMIN') return { to: '/dashboard/admin', label: 'Admin Dashboard' }
     return null
   }
 
@@ -55,7 +55,7 @@ function NavBar() {
                 {dashboardLink.label}
               </NavLink>
             )}
-            {isAuthenticated && (
+            {isAuthenticated && role !== 'ADMIN' && (
               <NavLink to="/messages" className={navLinkClass}>
                 <span className="navbar__link-with-badge">
                   <span>Messages</span>

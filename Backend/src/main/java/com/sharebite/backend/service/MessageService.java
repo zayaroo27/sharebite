@@ -45,8 +45,10 @@ public class MessageService {
             throw new ForbiddenException("You are not authorized to send messages in this conversation");
         }
 
-        // Optional: check request status and listing status
-        if (request.getStatus() == RequestStatus.REJECTED || request.getStatus() == RequestStatus.CANCELED) {
+        // Closed requests keep their conversation history, but messaging is read-only.
+        if (request.getStatus() == RequestStatus.REJECTED
+                || request.getStatus() == RequestStatus.CANCELED
+                || request.getStatus() == RequestStatus.COMPLETED) {
             throw new BadRequestException("Cannot send messages for closed requests");
         }
         if (request.getListing().getStatus() == ListingStatus.EXPIRED) {

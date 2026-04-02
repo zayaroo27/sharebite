@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { cancelMyRequest, fetchRecipientDashboard } from '../services/recipientService.js'
+import { cancelMyRequest, confirmReceivedRequest, fetchRecipientDashboard } from '../services/recipientService.js'
 import { LISTING_PLACEHOLDER_IMAGE } from '../constants/placeholders.js'
 import '../styles/recipient-dashboard.css'
 
@@ -23,28 +23,49 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('en-US').format(date)
 }
 
+function hasDonorConfirmedCompletion(request) {
+  return Boolean(request?.donorCompletedAt)
+}
+
+function hasRecipientConfirmedCompletion(request) {
+  return Boolean(request?.recipientCompletedAt)
+}
+
 function RecipientDashboardPage() {
   const [recentListings, setRecentListings] = useState([])
   const [myRequests, setMyRequests] = useState([])
   const [cancelingRequestId, setCancelingRequestId] = useState(null)
+  const [confirmingRequestId, setConfirmingRequestId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await fetchRecipientDashboard()
-        setRecentListings(data.recentListings ?? [])
-        setMyRequests(data.requests ?? [])
-      } catch (err) {
+  const loadDashboard = async ({ preserveLoadingState = false } = {}) => {
+    if (!preserveLoadingState) {
+      setLoading(true)
+    }
+
+    try {
+      const data = await fetchRecipientDashboard()
+      setRecentListings(data.recentListings ?? [])
+      setMyRequests(data.requests ?? [])
+      setError('')
+    } catch (err) {
+      if (!preserveLoadingState) {
         setError('We could not load your dashboard right now. Please try again.')
-      } finally {
+      } else {
+        // eslint-disable-next-line no-alert
+        alert(err?.response?.data?.message || 'Unable to refresh your requests right now.')
+      }
+    } finally {
+      if (!preserveLoadingState) {
         setLoading(false)
       }
     }
+  }
 
-    load()
+  useEffect(() => {
+    loadDashboard()
   }, [])
 
   const handleViewListing = (id) => {
@@ -69,6 +90,22 @@ function RecipientDashboardPage() {
       alert(err?.response?.data?.message || 'Unable to cancel this request right now.')
     } finally {
       setCancelingRequestId(null)
+    }
+  }
+
+  const handleConfirmReceived = async (requestId) => {
+    if (!requestId) return
+    if (!window.confirm('Confirm that you received this donation?')) return
+
+    setConfirmingRequestId(requestId)
+    try {
+      await confirmReceivedRequest(requestId)
+      await loadDashboard({ preserveLoadingState: true })
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert(err?.response?.data?.message || 'Unable to confirm receipt right now.')
+    } finally {
+      setConfirmingRequestId(null)
     }
   }
 
@@ -118,6 +155,12 @@ function RecipientDashboardPage() {
                   const status = String(request.status || '').toLowerCase()
                   const canView = status === 'approved' || status === 'completed'
                   const canCancel = status === 'pending'
+                  const donorConfirmed = hasDonorConfirmedCompletion(request)
+                  const recipientConfirmed = hasRecipientConfirmedCompletion(request)
+                  const canConfirmReceived = status === 'approved' && donorConfirmed && !recipientConfirmed
+                  const waitingForDonor = status === 'approved' && !donorConfirmed
+                  const waitingForRecipient = status === 'approved' && donorConfirmed && recipientConfirmed
+                  const isConfirming = confirmingRequestId === (request.requestId ?? request.id)
 
                   return (
                     <tr key={request.requestId ?? request.id}>
@@ -139,6 +182,16 @@ function RecipientDashboardPage() {
                             View Details
                           </button>
                         )}
+                        {canConfirmReceived && (
+                          <button
+                            type="button"
+                            className="recipient-dashboard__action-link recipient-dashboard__action-link--confirm"
+                            onClick={() => handleConfirmReceived(request.requestId ?? request.id)}
+                            disabled={isConfirming}
+                          >
+                            {isConfirming ? 'Confirming...' : 'Confirm received'}
+                          </button>
+                        )}
                         {canCancel && (
                           <button
                             type="button"
@@ -148,6 +201,16 @@ function RecipientDashboardPage() {
                           >
                             Cancel
                           </button>
+                        )}
+                        {waitingForDonor && (
+                          <span className="recipient-dashboard__action-note">
+                            Waiting for donor handover confirmation
+                          </span>
+                        )}
+                        {waitingForRecipient && (
+                          <span className="recipient-dashboard__action-note">
+                            Receipt already confirmed
+                          </span>
                         )}
                       </td>
                     </tr>

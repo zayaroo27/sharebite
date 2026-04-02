@@ -131,9 +131,28 @@
   cursor: pointer;
 }
 
+.recipient-dashboard__action-link--confirm {
+  border: none;
+  background: transparent;
+  color: #2ea84f;
+  padding: 0;
+  cursor: pointer;
+}
+
 .recipient-dashboard__action-link--cancel:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.recipient-dashboard__action-link--confirm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.recipient-dashboard__action-note {
+  display: inline-block;
+  font-size: 0.82rem;
+  color: #7a8391;
 }
 
 .recipient-dashboard__section-row {

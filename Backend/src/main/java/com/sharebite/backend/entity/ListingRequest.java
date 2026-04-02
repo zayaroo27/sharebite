@@ -31,6 +31,12 @@ public class ListingRequest {
     @Column
     private LocalDateTime completedDate;
 
+    @Column
+    private LocalDateTime donorCompletedAt;
+
+    @Column
+    private LocalDateTime recipientCompletedAt;
+
     @ManyToOne
     @JoinColumn(name = "listing_id", nullable = false)
     private FoodListing listing;

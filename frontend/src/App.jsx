@@ -82,9 +82,30 @@ function App() {
         />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/messages" element={<MessagesPage />} />
-        <Route path="/messages/:requestId" element={<MessagesPage />} />
-        <Route path="/requests/:requestId/messages" element={<MessagesPage />} />
+        <Route
+          path="/messages"
+          element={(
+            <ProtectedRoute allowedRoles={['DONOR', 'RECIPIENT']}>
+              <MessagesPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/messages/:requestId"
+          element={(
+            <ProtectedRoute allowedRoles={['DONOR', 'RECIPIENT']}>
+              <MessagesPage />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/requests/:requestId/messages"
+          element={(
+            <ProtectedRoute allowedRoles={['DONOR', 'RECIPIENT']}>
+              <MessagesPage />
+            </ProtectedRoute>
+          )}
+        />
       </Route>
 
       <Route path="/not-authorized" element={<NotAuthorizedPage />} />

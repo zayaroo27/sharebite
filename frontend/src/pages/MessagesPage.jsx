@@ -12,6 +12,7 @@ import '../styles/messages.css'
 
 const POLL_INTERVAL_MS = 5000
 const LAST_SEEN_KEY_PREFIX = 'sharebite_last_seen_request_'
+const CLOSED_CONVERSATION_STATUSES = new Set(['REJECTED', 'CANCELED', 'COMPLETED'])
 
 function formatTimestamp(value) {
   if (!value) return ''
@@ -35,6 +36,64 @@ function setLastSeen(requestId, timestamp) {
   } catch {
     // Ignore storage errors
   }
+}
+
+function normalizeStatus(status) {
+  return String(status || '').trim().toUpperCase()
+}
+
+function isConversationArchived(status) {
+  return CLOSED_CONVERSATION_STATUSES.has(normalizeStatus(status))
+}
+
+function getArchivedConversationMessage(status) {
+  switch (normalizeStatus(status)) {
+    case 'REJECTED':
+      return 'This conversation is archived because the request was declined. You can still review the message history.'
+    case 'CANCELED':
+      return 'This conversation is archived because the request was canceled. You can still review the message history.'
+    case 'COMPLETED':
+      return 'This conversation is archived because the request was completed. You can still review the message history.'
+    default:
+      return ''
+  }
+}
+
+function getConversationPriority(status) {
+  return isConversationArchived(status) ? 1 : 0
+}
+
+function getConversationActivityValue(conversation) {
+  const candidates = [
+    conversation?.latestMessage?.timestamp,
+    conversation?.recipientCompletedAt,
+    conversation?.donorCompletedAt,
+    conversation?.requestDate,
+    conversation?.requestedAt,
+    conversation?.decisionDate,
+    conversation?.completedDate,
+  ]
+
+  for (const value of candidates) {
+    if (!value) continue
+    const timestamp = new Date(value).getTime()
+    if (!Number.isNaN(timestamp)) {
+      return timestamp
+    }
+  }
+
+  return 0
+}
+
+function sortConversations(items) {
+  return [...items].sort((left, right) => {
+    const priorityDifference = getConversationPriority(left?.status) - getConversationPriority(right?.status)
+    if (priorityDifference !== 0) {
+      return priorityDifference
+    }
+
+    return getConversationActivityValue(right) - getConversationActivityValue(left)
+  })
 }
 
 function MessagesPage() {
@@ -121,9 +180,10 @@ function MessagesPage() {
           }),
         )
 
-        setConversations(enriched)
-        if (!selectedRequestId && enriched.length > 0) {
-          setSelectedRequestId(enriched[0].requestId)
+        const orderedConversations = sortConversations(enriched)
+        setConversations(orderedConversations)
+        if (!selectedRequestId && orderedConversations.length > 0) {
+          setSelectedRequestId(orderedConversations[0].requestId)
         }
         setError('')
       } catch (err) {
@@ -141,6 +201,8 @@ function MessagesPage() {
     () => conversations.find((c) => String(c.requestId) === String(selectedRequestId)) || null,
     [conversations, selectedRequestId],
   )
+  const selectedConversationArchived = isConversationArchived(selectedConversation?.status)
+  const selectedConversationArchiveMessage = getArchivedConversationMessage(selectedConversation?.status)
 
   useEffect(() => {
     if (!selectedRequestId) {
@@ -189,15 +251,15 @@ function MessagesPage() {
 
   const filteredConversations = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase()
-    if (!needle) return conversations
-
-    return conversations.filter((conversation) => {
+    const matchingConversations = !needle ? conversations : conversations.filter((conversation) => {
       const listing = String(conversation.listingTitle || '').toLowerCase()
       const otherPerson = String(
         user?.role === 'DONOR' ? conversation.recipientName : conversation.donorName,
       ).toLowerCase()
       return listing.includes(needle) || otherPerson.includes(needle)
     })
+
+    return sortConversations(matchingConversations)
   }, [conversations, searchTerm, user?.role])
 
   const handleSubmit = async (event) => {
@@ -293,7 +355,7 @@ function MessagesPage() {
                 <button
                   key={conversation.requestId}
                   type="button"
-                  className={`conversation-row ${selected ? 'conversation-row--active' : ''}`.trim()}
+                  className={`conversation-row ${selected ? 'conversation-row--active' : ''} ${isConversationArchived(conversation.status) ? 'conversation-row--archived' : ''}`.trim()}
                   onClick={() => setSelectedRequestId(conversation.requestId)}
                 >
                   <div className="conversation-row__identity">
@@ -369,6 +431,9 @@ function MessagesPage() {
 
             {error && <p className="form-error">{error}</p>}
             {reportFeedback && <p className="form-helper">{reportFeedback}</p>}
+            {selectedConversationArchived && (
+              <p className="messages-main__archive-note">{selectedConversationArchiveMessage}</p>
+            )}
 
             <div className="messages-thread">
               {loadingMessages ? (
@@ -410,16 +475,17 @@ function MessagesPage() {
               <input
                 type="text"
                 className="form-input"
-                placeholder="Type your message..."
+                placeholder={selectedConversationArchived ? 'This conversation is archived.' : 'Type your message...'}
                 value={newMessage}
                 onChange={(event) => setNewMessage(event.target.value)}
+                disabled={selectedConversationArchived}
               />
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={sending || !newMessage.trim()}
+                disabled={selectedConversationArchived || sending || !newMessage.trim()}
               >
-                {sending ? 'Sending...' : 'Send'}
+                {selectedConversationArchived ? 'Archived' : sending ? 'Sending...' : 'Send'}
               </button>
             </form>
           </>

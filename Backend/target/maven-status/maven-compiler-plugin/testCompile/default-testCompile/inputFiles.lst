@@ -3,3 +3,4 @@
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/FileStorageServiceTest.java
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/FoodListingServiceTest.java
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/AuthServiceImplTest.java
+/home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/MessageServiceTest.java

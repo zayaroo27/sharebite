@@ -223,25 +223,55 @@ public class ListingRequestService {
             throw new BadRequestException("Request must be approved to complete");
         }
 
-        request.setStatus(RequestStatus.COMPLETED);
-        request.setCompletedDate(LocalDateTime.now());
+        if (request.getDonorCompletedAt() != null) {
+            throw new BadRequestException("You have already confirmed this handover");
+        }
 
-        // Update listing status
-        FoodListing listing = request.getListing();
-        listing.setStatus(ListingStatus.COMPLETED);
-        foodListingRepository.save(listing);
+        LocalDateTime confirmationTime = LocalDateTime.now();
+        request.setDonorCompletedAt(confirmationTime);
 
         ListingRequest saved = listingRequestRepository.save(request);
 
-        // Create notification for recipient
+        if (request.getRecipientCompletedAt() != null) {
+            return finalizeCompletion(saved);
+        }
+
         notificationService.createNotification(
                 request.getRecipient(),
-                "Request completed",
-                "Your request for '" + request.getListing().getTitle() + "' has been marked as completed.",
+                "Confirm received",
+                "The donor marked '" + request.getListing().getTitle() + "' as handed over. Please confirm receipt.",
                 NotificationType.REQUEST_COMPLETED
         );
 
         return mapToResponse(saved);
+    }
+
+    @Transactional
+    public ListingRequestResponse confirmReceipt(UUID requestId) {
+        User recipient = getCurrentUser();
+        ListingRequest request = listingRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NotFoundException("Request not found"));
+
+        if (!request.getRecipient().getId().equals(recipient.getId())) {
+            throw new ForbiddenException("You can only confirm your own requests");
+        }
+
+        if (request.getStatus() != RequestStatus.APPROVED) {
+            throw new BadRequestException("Request must be approved before receipt can be confirmed");
+        }
+
+        if (request.getDonorCompletedAt() == null) {
+            throw new BadRequestException("The donor must confirm handover before you can confirm receipt");
+        }
+
+        if (request.getRecipientCompletedAt() != null) {
+            throw new BadRequestException("You have already confirmed receipt for this request");
+        }
+
+        request.setRecipientCompletedAt(LocalDateTime.now());
+        ListingRequest saved = listingRequestRepository.save(request);
+
+        return finalizeCompletion(saved);
     }
 
     private User getCurrentUser() {
@@ -270,10 +300,40 @@ public class ListingRequestService {
                 request.getRequestDate(),
                 request.getDecisionDate(),
                 request.getCompletedDate(),
+                request.getDonorCompletedAt(),
+                request.getRecipientCompletedAt(),
                 request.getRecipient().getUsername(),
                 request.getListing().getDonor().getUsername(),
                 request.getRecipient().getProfileImageUrl(),
                 request.getListing().getDonor().getProfileImageUrl()
         );
+    }
+
+    private ListingRequestResponse finalizeCompletion(ListingRequest request) {
+        request.setStatus(RequestStatus.COMPLETED);
+        if (request.getCompletedDate() == null) {
+            request.setCompletedDate(LocalDateTime.now());
+        }
+
+        FoodListing listing = request.getListing();
+        listing.setStatus(ListingStatus.COMPLETED);
+        foodListingRepository.save(listing);
+
+        ListingRequest saved = listingRequestRepository.save(request);
+
+        notificationService.createNotification(
+                request.getListing().getDonor(),
+                "Request completed",
+                "The donation for '" + request.getListing().getTitle() + "' has been fully confirmed.",
+                NotificationType.REQUEST_COMPLETED
+        );
+        notificationService.createNotification(
+                request.getRecipient(),
+                "Request completed",
+                "Your request for '" + request.getListing().getTitle() + "' has been fully confirmed.",
+                NotificationType.REQUEST_COMPLETED
+        );
+
+        return mapToResponse(saved);
     }
 }

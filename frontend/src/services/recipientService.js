@@ -16,3 +16,8 @@ export async function cancelMyRequest(requestId) {
   const response = await api.patch(`/requests/${requestId}/cancel`)
   return response.data
 }
+
+export async function confirmReceivedRequest(requestId) {
+  const response = await api.patch(`/requests/${requestId}/confirm-received`)
+  return response.data
+}

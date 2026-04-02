@@ -261,6 +261,10 @@
   background: #fff1f4;
 }
 
+.donor-dashboard__complete-btn {
+  padding-inline: 0.95rem;
+}
+
 .donor-dashboard__summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -11,6 +11,8 @@ public record ListingRequestResponse(
     LocalDateTime requestDate,
     LocalDateTime decisionDate,
     LocalDateTime completedDate,
+    LocalDateTime donorCompletedAt,
+    LocalDateTime recipientCompletedAt,
     String recipientName,
     String donorName,
     String recipientProfileImageUrl,

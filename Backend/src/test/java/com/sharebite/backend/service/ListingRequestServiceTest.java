@@ -162,6 +162,97 @@ class ListingRequestServiceTest {
         verify(notificationService, never()).createNotification(any(), any(), any(), any());
     }
 
+    @Test
+    void completeRequest_ShouldRecordDonorConfirmationAndKeepRequestApprovedUntilRecipientConfirms() {
+        User donor = createUser("donor", Role.DONOR);
+        User recipient = createUser("recipient", Role.RECIPIENT);
+
+        FoodListing listing = new FoodListing();
+        listing.setId(UUID.randomUUID());
+        listing.setTitle("Cooked rice");
+        listing.setDonor(donor);
+        listing.setStatus(ListingStatus.RESERVED);
+
+        ListingRequest request = new ListingRequest();
+        request.setId(UUID.randomUUID());
+        request.setListing(listing);
+        request.setRecipient(recipient);
+        request.setStatus(RequestStatus.APPROVED);
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(donor.getUsername(), "secret")
+        );
+
+        when(userRepository.findByUsername(donor.getUsername())).thenReturn(Optional.of(donor));
+        when(listingRequestRepository.findById(request.getId())).thenReturn(Optional.of(request));
+        when(listingRequestRepository.save(any(ListingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(foodListingRepository.save(any(FoodListing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ListingRequestResponse response = listingRequestService.completeRequest(request.getId());
+
+        assertEquals(RequestStatus.APPROVED.name(), response.status());
+        assertEquals(ListingStatus.RESERVED, listing.getStatus());
+        assertEquals(RequestStatus.APPROVED, request.getStatus());
+        assertNotNull(request.getDonorCompletedAt());
+        assertEquals(null, request.getCompletedDate());
+
+        verify(notificationService).createNotification(
+                eq(recipient),
+                eq("Confirm received"),
+                contains("Please confirm receipt"),
+                eq(NotificationType.REQUEST_COMPLETED)
+        );
+    }
+
+    @Test
+    void confirmReceipt_ShouldFinalizeCompletionAfterDonorConfirmation() {
+        User donor = createUser("donor", Role.DONOR);
+        User recipient = createUser("recipient", Role.RECIPIENT);
+
+        FoodListing listing = new FoodListing();
+        listing.setId(UUID.randomUUID());
+        listing.setTitle("Cooked rice");
+        listing.setDonor(donor);
+        listing.setStatus(ListingStatus.RESERVED);
+
+        ListingRequest request = new ListingRequest();
+        request.setId(UUID.randomUUID());
+        request.setListing(listing);
+        request.setRecipient(recipient);
+        request.setStatus(RequestStatus.APPROVED);
+        request.setDonorCompletedAt(java.time.LocalDateTime.now().minusMinutes(5));
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(recipient.getUsername(), "secret")
+        );
+
+        when(userRepository.findByUsername(recipient.getUsername())).thenReturn(Optional.of(recipient));
+        when(listingRequestRepository.findById(request.getId())).thenReturn(Optional.of(request));
+        when(listingRequestRepository.save(any(ListingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(foodListingRepository.save(any(FoodListing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ListingRequestResponse response = listingRequestService.confirmReceipt(request.getId());
+
+        assertEquals(RequestStatus.COMPLETED.name(), response.status());
+        assertEquals(ListingStatus.COMPLETED, listing.getStatus());
+        assertEquals(RequestStatus.COMPLETED, request.getStatus());
+        assertNotNull(request.getRecipientCompletedAt());
+        assertNotNull(request.getCompletedDate());
+
+        verify(notificationService).createNotification(
+                eq(recipient),
+                eq("Request completed"),
+                contains("fully confirmed"),
+                eq(NotificationType.REQUEST_COMPLETED)
+        );
+        verify(notificationService).createNotification(
+                eq(donor),
+                eq("Request completed"),
+                contains("fully confirmed"),
+                eq(NotificationType.REQUEST_COMPLETED)
+        );
+    }
+
     private User createUser(String username, Role role) {
         User user = new User();
         user.setId(UUID.randomUUID());

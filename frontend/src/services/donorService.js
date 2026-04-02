@@ -21,3 +21,8 @@ export async function rejectRequest(requestId) {
   const response = await api.patch(`/requests/${requestId}/reject`)
   return response.data
 }
+
+export async function completeRequest(requestId) {
+  const response = await api.patch(`/requests/${requestId}/complete`)
+  return response.data
+}

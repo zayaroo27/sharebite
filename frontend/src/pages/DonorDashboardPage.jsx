@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchDonorDashboard, approveRequest, rejectRequest } from '../services/donorService.js'
+import { fetchDonorDashboard, approveRequest, rejectRequest, completeRequest } from '../services/donorService.js'
 import { deleteMyListing } from '../services/listingService.js'
 import Button from '../components/Button.jsx'
 import { LISTING_PLACEHOLDER_IMAGE } from '../constants/placeholders.js'
@@ -11,23 +11,36 @@ function DonorDashboardPage() {
   const [requests, setRequests] = useState([])
   const [showCanceledRequests, setShowCanceledRequests] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [requestActionId, setRequestActionId] = useState(null)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await fetchDonorDashboard()
-        setListings(data.listings ?? [])
-        setRequests(data.requests ?? [])
-      } catch (err) {
+  const loadDashboard = async ({ preserveLoadingState = false } = {}) => {
+    if (!preserveLoadingState) {
+      setLoading(true)
+    }
+
+    try {
+      const data = await fetchDonorDashboard()
+      setListings(data.listings ?? [])
+      setRequests(data.requests ?? [])
+      setError('')
+    } catch (err) {
+      if (!preserveLoadingState) {
         setError('We could not load your dashboard right now. Please try again.')
-      } finally {
+      } else {
+        // eslint-disable-next-line no-alert
+        alert(err?.response?.data?.message || 'Unable to refresh your dashboard right now.')
+      }
+    } finally {
+      if (!preserveLoadingState) {
         setLoading(false)
       }
     }
+  }
 
-    load()
+  useEffect(() => {
+    loadDashboard()
   }, [])
 
   const handleCreate = () => {
@@ -61,13 +74,16 @@ function DonorDashboardPage() {
       return
     }
 
+    setRequestActionId(requestId)
     try {
       await approveRequest(requestId)
-      setRequests((prev) => prev.filter((req) => (req.requestId ?? req.id) !== requestId))
+      await loadDashboard({ preserveLoadingState: true })
     } catch (err) {
       const message = err?.response?.data?.message || err?.response?.data?.error || 'Unable to approve this request right now.'
       // eslint-disable-next-line no-alert
       alert(message)
+    } finally {
+      setRequestActionId(null)
     }
   }
 
@@ -78,13 +94,38 @@ function DonorDashboardPage() {
       return
     }
 
+    setRequestActionId(requestId)
     try {
       await rejectRequest(requestId)
-      setRequests((prev) => prev.filter((req) => (req.requestId ?? req.id) !== requestId))
+      await loadDashboard({ preserveLoadingState: true })
     } catch (err) {
       const message = err?.response?.data?.message || err?.response?.data?.error || 'Unable to reject this request right now.'
       // eslint-disable-next-line no-alert
       alert(message)
+    } finally {
+      setRequestActionId(null)
+    }
+  }
+
+  const handleComplete = async (requestId) => {
+    if (!requestId) {
+      // eslint-disable-next-line no-alert
+      alert('This request is missing an ID and cannot be completed.')
+      return
+    }
+
+    if (!window.confirm('Mark this donation as completed?')) return
+
+    setRequestActionId(requestId)
+    try {
+      await completeRequest(requestId)
+      await loadDashboard({ preserveLoadingState: true })
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.response?.data?.error || 'Unable to complete this donation right now.'
+      // eslint-disable-next-line no-alert
+      alert(message)
+    } finally {
+      setRequestActionId(null)
     }
   }
 
@@ -94,6 +135,9 @@ function DonorDashboardPage() {
     if (Number.isNaN(date.getTime())) return value
     return new Intl.DateTimeFormat('en-US').format(date)
   }
+
+  const hasDonorConfirmedCompletion = (request) => Boolean(request?.donorCompletedAt)
+  const hasRecipientConfirmedCompletion = (request) => Boolean(request?.recipientCompletedAt)
 
   const summary = useMemo(() => {
     const totalDonations = listings.length
@@ -118,6 +162,11 @@ function DonorDashboardPage() {
 
   const pendingRequests = useMemo(
     () => requests.filter((request) => String(request.status || '').toUpperCase() === 'PENDING'),
+    [requests],
+  )
+
+  const approvedRequests = useMemo(
+    () => requests.filter((request) => String(request.status || '').toUpperCase() === 'APPROVED'),
     [requests],
   )
 
@@ -207,6 +256,57 @@ function DonorDashboardPage() {
       </article>
 
       <article>
+        <h2 className="donor-dashboard__section-title">Approved Handovers</h2>
+        <div className="card donor-dashboard__requests-card">
+          {approvedRequests.length === 0 ? (
+            <p className="donor-dashboard__subtitle">
+              No approved requests are waiting for completion right now.
+            </p>
+          ) : (
+            <div className="donor-dashboard__requests-list">
+              {approvedRequests.map((request) => {
+                const requestId = request.requestId ?? request.id
+                const isProcessing = requestActionId === requestId
+                const donorConfirmed = hasDonorConfirmedCompletion(request)
+                const recipientConfirmed = hasRecipientConfirmedCompletion(request)
+                const waitingText = donorConfirmed
+                  ? 'Waiting for recipient receipt confirmation'
+                  : recipientConfirmed
+                    ? 'Recipient already confirmed receipt'
+                    : ''
+
+                return (
+                  <div key={requestId} className="donor-dashboard__request-row">
+                    <div className="donor-dashboard__request-main">
+                      <h3 className="donor-dashboard__request-title">{request.listingTitle}</h3>
+                      <div className="donor-dashboard__request-meta">
+                        {request.recipientName && <span>Approved for: {request.recipientName}</span>}
+                        <span>Approved on: {formatDate(request.decisionDate || request.requestDate)}</span>
+                        <span className="donor-dashboard__request-status">
+                          {String(request.status || 'APPROVED').toLowerCase()}
+                        </span>
+                        {waitingText && <span>{waitingText}</span>}
+                      </div>
+                    </div>
+                    <div className="donor-dashboard__request-actions">
+                      <Button
+                        variant="primary"
+                        className="donor-dashboard__complete-btn"
+                        onClick={() => handleComplete(requestId)}
+                        disabled={isProcessing || donorConfirmed}
+                      >
+                        {isProcessing ? 'Confirming...' : donorConfirmed ? 'Waiting for recipient' : 'Mark as handed over'}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </article>
+
+      <article>
         <div className="donor-dashboard__section-head">
           <h2 className="donor-dashboard__section-title">Incoming Requests</h2>
           {canceledRequests.length > 0 && (
@@ -228,30 +328,45 @@ function DonorDashboardPage() {
             </p>
           ) : (
             <div className="donor-dashboard__requests-list">
-              {visibleRequests.map((request) => (
-                <div key={request.requestId ?? request.id} className="donor-dashboard__request-row">
-                  <div className="donor-dashboard__request-main">
-                    <h3 className="donor-dashboard__request-title">{request.listingTitle}</h3>
-                    <div className="donor-dashboard__request-meta">
-                      {request.recipientName && <span>Requested by: {request.recipientName}</span>}
-                      <span>Date: {formatDate(request.requestDate || request.requestedAt)}</span>
-                      <span className="donor-dashboard__request-status">
-                        {String(request.status || 'PENDING').toLowerCase()}
-                      </span>
+              {visibleRequests.map((request) => {
+                const requestId = request.requestId ?? request.id
+                const isProcessing = requestActionId === requestId
+
+                return (
+                  <div key={requestId} className="donor-dashboard__request-row">
+                    <div className="donor-dashboard__request-main">
+                      <h3 className="donor-dashboard__request-title">{request.listingTitle}</h3>
+                      <div className="donor-dashboard__request-meta">
+                        {request.recipientName && <span>Requested by: {request.recipientName}</span>}
+                        <span>Date: {formatDate(request.requestDate || request.requestedAt)}</span>
+                        <span className="donor-dashboard__request-status">
+                          {String(request.status || 'PENDING').toLowerCase()}
+                        </span>
+                      </div>
                     </div>
+                    {!showCanceledRequests && (
+                      <div className="donor-dashboard__request-actions">
+                        <Button
+                          variant="primary"
+                          className="donor-dashboard__approve-btn"
+                          onClick={() => handleApprove(requestId)}
+                          disabled={isProcessing}
+                        >
+                          {isProcessing ? 'Updating...' : '✓ Approve'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="donor-dashboard__reject-btn"
+                          onClick={() => handleReject(requestId)}
+                          disabled={isProcessing}
+                        >
+                          {isProcessing ? 'Updating...' : '✕ Reject'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {!showCanceledRequests && (
-                    <div className="donor-dashboard__request-actions">
-                      <Button variant="primary" className="donor-dashboard__approve-btn" onClick={() => handleApprove(request.requestId ?? request.id)}>
-                        ✓ Approve
-                      </Button>
-                      <Button variant="outline" className="donor-dashboard__reject-btn" onClick={() => handleReject(request.requestId ?? request.id)}>
-                        ✕ Reject
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

@@ -67,4 +67,11 @@ public class ListingRequestController {
         ListingRequestResponse response = listingRequestService.completeRequest(requestId);
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/{requestId}/confirm-received")
+    @PreAuthorize("hasRole('RECIPIENT')")
+    public ResponseEntity<ListingRequestResponse> confirmReceipt(@PathVariable UUID requestId) {
+        ListingRequestResponse response = listingRequestService.confirmReceipt(requestId);
+        return ResponseEntity.ok(response);
+    }
 }

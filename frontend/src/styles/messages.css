@@ -66,6 +66,16 @@
   box-shadow: 0 0 0 1px rgba(46, 125, 50, 0.12);
 }
 
+.conversation-row--archived {
+  background: #fbfcfd;
+  border-color: #d8dde3;
+}
+
+.conversation-row--archived .conversation-row__top h3,
+.conversation-row--archived .conversation-row__preview {
+  color: #667180;
+}
+
 .conversation-row__identity {
   display: flex;
   align-items: flex-start;
@@ -198,6 +208,16 @@
   margin: 0.4rem 0 0;
   font-size: 0.8rem;
   color: #8a93a0;
+}
+
+.messages-main__archive-note {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #dde4ea;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  color: #5f6b79;
+  font-size: 0.9rem;
 }
 
 .messages-thread {
