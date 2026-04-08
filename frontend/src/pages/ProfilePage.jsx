@@ -205,7 +205,7 @@ function ProfilePage() {
           </div>
         )}
 
-        <form onSubmit={handleSave} noValidate>
+        <form onSubmit={handleSave} noValidate className="profile-page__form">
           <TextInput
             id="displayName"
             name="displayName"
@@ -234,7 +234,7 @@ function ProfilePage() {
           />
 
           {error && <p className="form-error">{error}</p>}
-          {success && <p className="form-helper">{success}</p>}
+          {success && <p className="profile-page__success">{success}</p>}
 
           <Button
             type="submit"

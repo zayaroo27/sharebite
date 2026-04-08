@@ -19,6 +19,9 @@ function ListingForm({
   currentImageUrl = '',
   onImageChange,
   showImageField = false,
+  onUseCurrentLocation,
+  locationLoading = false,
+  locationLookupError = '',
 }) {
   const fileInputRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -86,16 +89,44 @@ function ListingForm({
           required
         />
 
-        <TextInput
-          id="location"
-          name="location"
-          label="Pickup location"
-          value={form.location}
-          onChange={onChange}
-          placeholder="Mirpur DOHS"
-          error={errors.location}
-          required
-        />
+        <div className="form-field">
+          <label className="form-label" htmlFor="location">
+            Pickup location <span aria-hidden="true">*</span>
+          </label>
+          <input
+            id="location"
+            name="location"
+            className={`form-input ${errors.location ? 'form-input--error' : ''}`.trim()}
+            value={form.location}
+            onChange={onChange}
+            placeholder="Mirpur DOHS"
+            aria-invalid={Boolean(errors.location)}
+            aria-describedby={errors.location ? 'location-error' : locationLookupError ? 'location-lookup-error' : undefined}
+            required
+          />
+          {onUseCurrentLocation && (
+            <div className="listing-editor__location-actions">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onUseCurrentLocation}
+                disabled={locationLoading}
+              >
+                {locationLoading ? 'Finding location...' : 'Use current location'}
+              </Button>
+            </div>
+          )}
+          {locationLookupError && !errors.location && (
+            <p id="location-lookup-error" className="form-error">
+              {locationLookupError}
+            </p>
+          )}
+          {errors.location && (
+            <p id="location-error" className="form-error">
+              {errors.location}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="listing-editor__grid">

@@ -13,7 +13,9 @@ public record ListingRequestResponse(
     LocalDateTime completedDate,
     LocalDateTime donorCompletedAt,
     LocalDateTime recipientCompletedAt,
+    UUID recipientId,
     String recipientName,
+    UUID donorId,
     String donorName,
     String recipientProfileImageUrl,
     String donorProfileImageUrl

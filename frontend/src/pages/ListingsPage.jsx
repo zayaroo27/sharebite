@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchCategories, fetchListings } from '../services/listingService.js'
+import { getCurrentLocationLabel } from '../services/locationService.js'
 import { LISTING_PLACEHOLDER_IMAGE } from '../constants/placeholders.js'
 import { reportListing } from '../services/reportService.js'
 import { useAuth } from '../hooks/useAuth.js'
@@ -19,6 +20,8 @@ function ListingsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationLookupError, setLocationLookupError] = useState('')
   const [reportTarget, setReportTarget] = useState(null)
   const [reportingId, setReportingId] = useState(null)
   const [reportError, setReportError] = useState('')
@@ -112,6 +115,23 @@ function ListingsPage() {
     [debouncedSearch, categoryFilter, locationFilter],
   )
   const canReportListings = isAuthenticated && user?.role !== 'ADMIN'
+
+  const handleUseCurrentLocation = async () => {
+    setLocationLoading(true)
+    setLocationLookupError('')
+
+    try {
+      const locationLabel = await getCurrentLocationLabel()
+      setLocationFilter(locationLabel)
+      setLocationOptions((prev) => (
+        Array.from(new Set([...prev, locationLabel])).sort((left, right) => left.localeCompare(right))
+      ))
+    } catch (error) {
+      setLocationLookupError(error.message)
+    } finally {
+      setLocationLoading(false)
+    }
+  }
 
   const handleCardClick = (id) => {
     if (!id) return
@@ -213,24 +233,38 @@ function ListingsPage() {
         </div>
 
         <div className="listings-page__controls-group">
-          <select
-            id="location-filter"
-            className="form-select listings-page__select"
-            value={locationFilter}
-            onChange={(event) => setLocationFilter(event.target.value)}
-          >
-            <option value="">All Locations</option>
-            {locationOptions.map((location) => (
-              <option key={location} value={location}>
-                {location}
-              </option>
-            ))}
-          </select>
+          <div className="listings-page__location-group">
+            <select
+              id="location-filter"
+              className="form-select listings-page__select"
+              value={locationFilter}
+              onChange={(event) => {
+                setLocationFilter(event.target.value)
+                setLocationLookupError('')
+              }}
+            >
+              <option value="">All Locations</option>
+              {locationOptions.map((location) => (
+                <option key={location} value={location}>
+                  {location}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="listings-page__location-button"
+              onClick={handleUseCurrentLocation}
+              disabled={locationLoading}
+            >
+              {locationLoading ? 'Finding location...' : 'Use my location'}
+            </button>
+          </div>
         </div>
       </div>
 
       {loading && <p>Loading listings…</p>}
       {error && !loading && <p className="form-error">{error}</p>}
+      {locationLookupError && !loading && <p className="form-error">{locationLookupError}</p>}
       {reportFeedback && !loading && <p className="form-helper">{reportFeedback}</p>}
 
       {!loading && !error && listings.length === 0 && (

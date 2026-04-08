@@ -17,6 +17,10 @@ public interface ListingRequestRepository extends JpaRepository<ListingRequest, 
 
     List<ListingRequest> findByRecipientIdOrderByRequestDateDesc(UUID recipientId);
 
+    long countByRecipientId(UUID recipientId);
+
+    long countByRecipientIdAndStatus(UUID recipientId, RequestStatus status);
+
     @Query("SELECT r FROM ListingRequest r WHERE r.listing.donor.id = :donorId ORDER BY r.requestDate DESC")
     List<ListingRequest> findByDonorIdOrderByRequestDateDesc(@Param("donorId") UUID donorId);
 

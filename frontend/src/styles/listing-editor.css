@@ -86,6 +86,10 @@
   margin-top: 0.5rem;
 }
 
+.listing-editor__location-actions {
+  margin-top: 0.65rem;
+}
+
 @media (max-width: 700px) {
   .listing-editor__grid {
     grid-template-columns: 1fr;

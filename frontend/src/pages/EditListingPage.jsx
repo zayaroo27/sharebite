@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ListingForm from '../components/ListingForm.jsx'
+import { getCurrentLocationLabel } from '../services/locationService.js'
 import { fetchCategories, fetchListingById, updateMyListing, uploadListingImage } from '../services/listingService.js'
 import '../styles/listing-editor.css'
 
@@ -21,6 +22,8 @@ function EditListingPage() {
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationLookupError, setLocationLookupError] = useState('')
   const [submitError, setSubmitError] = useState('')
 
   useEffect(() => {
@@ -65,6 +68,25 @@ function EditListingPage() {
   const handleChange = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
+
+    if (name === 'location') {
+      setLocationLookupError('')
+    }
+  }
+
+  const handleUseCurrentLocation = async () => {
+    setLocationLoading(true)
+    setLocationLookupError('')
+
+    try {
+      const locationLabel = await getCurrentLocationLabel()
+      setForm((prev) => ({ ...prev, location: locationLabel }))
+      setErrors((prev) => ({ ...prev, location: '' }))
+    } catch (error) {
+      setLocationLookupError(error.message)
+    } finally {
+      setLocationLoading(false)
+    }
   }
 
   const validate = () => {
@@ -141,6 +163,9 @@ function EditListingPage() {
           currentImageUrl={currentImageUrl}
           onImageChange={setImageFile}
           showImageField
+          onUseCurrentLocation={handleUseCurrentLocation}
+          locationLoading={locationLoading}
+          locationLookupError={locationLookupError}
         />
       </div>
     </section>

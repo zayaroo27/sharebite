@@ -90,6 +90,7 @@ function ListingDetailsPage() {
   }
 
   const {
+    donorId,
     title,
     description,
     quantity,
@@ -200,6 +201,11 @@ function ListingDetailsPage() {
               )}
               {memberSince && (
                 <p className="listing-details__trust-line">Member since {memberSince}</p>
+              )}
+              {donorId && (
+                <Link to={`/users/${donorId}`} className="listing-details__profile-link">
+                  View public profile
+                </Link>
               )}
               {!donorOrganisationName && !memberSince && (
                 <p className="listing-details__helper">

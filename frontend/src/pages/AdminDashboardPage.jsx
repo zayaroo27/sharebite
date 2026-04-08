@@ -126,6 +126,7 @@ function AdminDashboardPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [reportTab, setReportTab] = useState('PENDING')
+  const [userSearch, setUserSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dashboardWarning, setDashboardWarning] = useState('')
@@ -166,6 +167,17 @@ function AdminDashboardPage() {
   )
 
   const visibleReports = reportTab === 'PENDING' ? pendingReports : reviewedReports
+  const filteredUsers = useMemo(() => {
+    const needle = userSearch.trim().toLowerCase()
+    if (!needle) return users
+
+    return users.filter((user) => {
+      const username = String(user.username || '').toLowerCase()
+      const email = String(user.email || '').toLowerCase()
+      const role = String(user.role || '').toLowerCase()
+      return username.includes(needle) || email.includes(needle) || role.includes(needle)
+    })
+  }, [users, userSearch])
 
   const handleSuspend = async (userId) => {
     try {
@@ -322,9 +334,18 @@ function AdminDashboardPage() {
       )}
 
       <div className="admin-dashboard__grid">
-        <article className="card">
-          <h2 className="admin-dashboard__section-title">Users</h2>
-          <div className="admin-dashboard__table-wrapper">
+        <article className="card admin-dashboard__panel-card">
+          <div className="admin-dashboard__panel-head">
+            <h2 className="admin-dashboard__section-title">Users</h2>
+            <input
+              type="text"
+              className="form-input admin-dashboard__search-input"
+              placeholder="Search by username, email, or role"
+              value={userSearch}
+              onChange={(event) => setUserSearch(event.target.value)}
+            />
+          </div>
+          <div className="admin-dashboard__table-wrapper admin-dashboard__table-wrapper--panel">
             <table className="admin-dashboard__table">
               <thead>
                 <tr>
@@ -336,7 +357,7 @@ function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr key={user.id}>
                     <td>{user.username}</td>
                     <td>{user.email}</td>
@@ -360,13 +381,20 @@ function AdminDashboardPage() {
                     </td>
                   </tr>
                 ))}
+                {filteredUsers.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="admin-dashboard__empty-row">
+                      No users match your search.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </article>
 
         <div className="admin-dashboard__sidebar">
-          <article className="card">
+          <article className="card admin-dashboard__panel-card">
             <div className="admin-dashboard__categories-header">
               <h2 className="admin-dashboard__section-title">Categories</h2>
               <Button variant="secondary" onClick={handleCreateCategory}>
@@ -378,7 +406,7 @@ function AdminDashboardPage() {
                 No categories defined yet. Add categories to help donors label their listings clearly.
               </p>
             ) : (
-              <div className="admin-dashboard__categories-list">
+              <div className="admin-dashboard__categories-list admin-dashboard__categories-list--scroll">
                 {categories.map((category) => (
                   <div key={category.id} className="admin-dashboard__categories-item">
                     <div className="admin-dashboard__categories-main">
@@ -400,7 +428,7 @@ function AdminDashboardPage() {
         </div>
       </div>
 
-      <article className="card">
+      <article className="card admin-dashboard__panel-card">
         <div className="admin-dashboard__reports-header">
           <div>
             <h2 className="admin-dashboard__section-title">Reports moderation</h2>
@@ -431,7 +459,7 @@ function AdminDashboardPage() {
               : 'There is no reviewed report history yet.'}
           </p>
         ) : (
-          <div className="admin-dashboard__table-wrapper">
+          <div className="admin-dashboard__table-wrapper admin-dashboard__table-wrapper--panel">
             <table className="admin-dashboard__table">
               <thead>
                 <tr>

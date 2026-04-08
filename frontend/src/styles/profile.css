@@ -43,6 +43,30 @@
   gap: 0.95rem 1.2rem;
 }
 
+.profile-page__form {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0.75rem;
+}
+
+.profile-page__form .form-helper,
+.profile-page__form .form-error {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+
+.profile-page__success {
+  display: block;
+  margin-bottom: 0.9rem;
+  color: var(--sb-color-success);
+  font-size: var(--sb-font-size-xs);
+}
+
+.profile-page__form .btn {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+
 @media (max-width: 760px) {
   .profile-page__overview {
     grid-template-columns: 1fr;

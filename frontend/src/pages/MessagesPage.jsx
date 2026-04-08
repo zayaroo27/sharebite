@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { fetchConversation, sendMessage } from '../services/messageService.js'
 import { fetchDonorDashboard } from '../services/donorService.js'
 import { fetchRecipientDashboard } from '../services/recipientService.js'
@@ -301,6 +301,10 @@ function MessagesPage() {
     user?.role === 'DONOR' ? conversation.recipientProfileImageUrl : conversation.donorProfileImageUrl
   )
 
+  const getParticipantId = (conversation) => (
+    user?.role === 'DONOR' ? conversation.recipientId : conversation.donorId
+  )
+
   const handleReportConversation = async () => {
     if (!selectedConversation?.requestId) return
     setReportError('')
@@ -422,7 +426,16 @@ function MessagesPage() {
                   imageUrl={getParticipantImageUrl(selectedConversation)}
                   size={34}
                 />
-                <span>{getParticipantName(selectedConversation) || 'Unknown participant'}</span>
+                {getParticipantId(selectedConversation) ? (
+                  <Link
+                    to={`/users/${getParticipantId(selectedConversation)}`}
+                    className="messages-main__profile-link"
+                  >
+                    {getParticipantName(selectedConversation) || 'Unknown participant'}
+                  </Link>
+                ) : (
+                  <span>{getParticipantName(selectedConversation) || 'Unknown participant'}</span>
+                )}
                 <span className="conversation-badge conversation-badge--role">{getParticipantRole()}</span>
                 <span className="conversation-badge conversation-badge--status">{selectedConversation.status || 'PENDING'}</span>
               </div>

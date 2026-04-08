@@ -210,6 +210,17 @@
   color: #8a93a0;
 }
 
+.messages-main__profile-link {
+  color: #2f3b46;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.messages-main__profile-link:hover {
+  color: #2ea84f;
+  text-decoration: underline;
+}
+
 .messages-main__archive-note {
   margin: 0.75rem 0 0;
   padding: 0.75rem 0.9rem;

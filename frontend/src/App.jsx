@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import ListingsPage from './pages/ListingsPage.jsx'
 import ListingDetailsPage from './pages/ListingDetailsPage.jsx'
+import PublicUserProfilePage from './pages/PublicUserProfilePage.jsx'
 import DonorDashboardPage from './pages/DonorDashboardPage.jsx'
 import CreateListingPage from './pages/CreateListingPage.jsx'
 import EditListingPage from './pages/EditListingPage.jsx'
@@ -26,6 +27,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/listings" element={<ListingsPage />} />
         <Route path="/listings/:id" element={<ListingDetailsPage />} />
+        <Route path="/users/:id" element={<PublicUserProfilePage />} />
       </Route>
 
       <Route element={<AuthLayout />}>

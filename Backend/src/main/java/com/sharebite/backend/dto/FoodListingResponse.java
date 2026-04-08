@@ -13,6 +13,7 @@ public record FoodListingResponse(
     String location,
     String status,
     LocalDateTime createdAt,
+    UUID donorId,
     String donorName,
     UUID categoryId,
     String categoryName,

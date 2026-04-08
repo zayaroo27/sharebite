@@ -75,7 +75,21 @@ function NavBar() {
                 onClick={() => navigate('/notifications')}
                 aria-label="Notifications"
               >
-                <span aria-hidden="true">🔔</span>
+                <svg
+                  className="navbar__bell-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M15 18H9m9-1V11a6 6 0 1 0-12 0v6l-2 2h16l-2-2Zm-7 3h2"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
                 {unreadAlertCount > 0 && <span className="navbar__bell-badge">{alertBadgeText}</span>}
               </button>
 

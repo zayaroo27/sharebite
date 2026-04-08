@@ -302,7 +302,9 @@ public class ListingRequestService {
                 request.getCompletedDate(),
                 request.getDonorCompletedAt(),
                 request.getRecipientCompletedAt(),
+                request.getRecipient().getId(),
                 request.getRecipient().getUsername(),
+                request.getListing().getDonor().getId(),
                 request.getListing().getDonor().getUsername(),
                 request.getRecipient().getProfileImageUrl(),
                 request.getListing().getDonor().getProfileImageUrl()

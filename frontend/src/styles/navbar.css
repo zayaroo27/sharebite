@@ -28,6 +28,7 @@
 }
 
 .navbar__brand a {
+  font-family: var(--sb-font-family-base);
   font-weight: 700;
   font-size: 2rem;
   text-decoration: none;
@@ -62,6 +63,8 @@
 }
 
 .navbar__link {
+  font-family: var(--sb-font-family-base);
+  font-weight: 500;
   text-decoration: none;
   color: #39424d;
   padding-bottom: 0.1rem;
@@ -100,6 +103,7 @@
 }
 
 .navbar__profile-pill {
+  font-family: var(--sb-font-family-base);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -123,8 +127,8 @@
 
 .navbar__bell-button {
   position: relative;
-  width: 2rem;
-  height: 2rem;
+  width: 2.7rem;
+  height: 2.7rem;
   border-radius: 999px;
   border: 1px solid #d7dde3;
   background: #ffffff;
@@ -133,6 +137,12 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.navbar__bell-icon {
+  width: 1.55rem;
+  height: 1.55rem;
+  display: block;
 }
 
 .navbar__bell-button:hover {
@@ -160,6 +170,8 @@
 }
 
 .navbar__logout-link {
+  font-family: var(--sb-font-family-base);
+  font-weight: 500;
   color: #5f6b77;
   background: transparent;
   border: none;

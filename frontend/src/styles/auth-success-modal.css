@@ -1,0 +1,60 @@
+.auth-success-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.auth-success-modal {
+  width: min(100%, 28rem);
+  padding: 2rem;
+  border-radius: 1.35rem;
+  border: 1px solid rgba(46, 125, 50, 0.16);
+  text-align: center;
+  box-shadow:
+    0 22px 48px rgba(15, 23, 42, 0.16),
+    0 10px 22px rgba(46, 125, 50, 0.08);
+}
+
+.auth-success-modal__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 1rem;
+  border-radius: 999px;
+  background: rgba(46, 125, 50, 0.12);
+  color: #2f6b33;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.auth-success-modal__title {
+  margin: 0;
+  color: #16324f;
+  font-size: 1.45rem;
+}
+
+.auth-success-modal__message {
+  margin: 0.9rem 0 0;
+  color: #5b6b7f;
+  line-height: 1.6;
+}
+
+.auth-success-modal__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.6rem;
+}
+
+@media (max-width: 640px) {
+  .auth-success-modal {
+    padding: 1.5rem;
+  }
+}

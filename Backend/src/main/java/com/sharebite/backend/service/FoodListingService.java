@@ -241,6 +241,7 @@ public class FoodListingService {
                 listing.getLocation(),
                 listing.getStatus().name(),
                 listing.getCreatedAt(),
+                donor.getId(),
                 donor.getUsername(),
                 categoryId,
                 categoryName,

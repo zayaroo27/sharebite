@@ -215,6 +215,15 @@
   font-size: 0.95rem;
 }
 
+.listing-details__profile-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.95rem;
+  color: #2ea84f;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .listing-details__secondary-card {
   padding: 1.15rem 1.2rem;
   box-shadow: 0 10px 22px rgba(24, 43, 32, 0.05);
