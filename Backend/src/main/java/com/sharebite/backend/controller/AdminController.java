@@ -2,6 +2,7 @@ package com.sharebite.backend.controller;
 
 import com.sharebite.backend.dto.AdminStatsResponse;
 import com.sharebite.backend.dto.AdminReportDetailResponse;
+import com.sharebite.backend.dto.AdminReportReviewRequest;
 import com.sharebite.backend.dto.AdminReportResponse;
 import com.sharebite.backend.dto.AdminUserResponse;
 import com.sharebite.backend.service.AdminService;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.UUID;
@@ -65,14 +67,18 @@ public class AdminController {
     }
 
     @PatchMapping("/reports/{id}/resolve")
-    public ResponseEntity<AdminReportResponse> resolveReport(@PathVariable UUID id) {
-        AdminReportResponse response = adminService.resolveReport(id);
+    public ResponseEntity<AdminReportResponse> resolveReport(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminReportReviewRequest body) {
+        AdminReportResponse response = adminService.resolveReport(id, body);
         return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/reports/{id}/dismiss")
-    public ResponseEntity<AdminReportResponse> dismissReport(@PathVariable UUID id) {
-        AdminReportResponse response = adminService.dismissReport(id);
+    public ResponseEntity<AdminReportResponse> dismissReport(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminReportReviewRequest body) {
+        AdminReportResponse response = adminService.dismissReport(id, body);
         return ResponseEntity.ok(response);
     }
 }

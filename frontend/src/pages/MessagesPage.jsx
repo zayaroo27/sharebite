@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchConversation, sendMessage } from '../services/messageService.js'
 import { fetchDonorDashboard } from '../services/donorService.js'
 import { fetchRecipientDashboard } from '../services/recipientService.js'
@@ -98,6 +98,7 @@ function sortConversations(items) {
 
 function MessagesPage() {
   const { requestId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { markMessageNotificationsAsRead } = useNotifications()
   const [conversations, setConversations] = useState([])
@@ -110,6 +111,7 @@ function MessagesPage() {
   const [sending, setSending] = useState(false)
   const [reportingConversation, setReportingConversation] = useState(false)
   const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [messageToReport, setMessageToReport] = useState(null)
   const [reportError, setReportError] = useState('')
   const [reportFeedback, setReportFeedback] = useState('')
   const [error, setError] = useState('')
@@ -122,6 +124,8 @@ function MessagesPage() {
   useEffect(() => {
     if (requestId) {
       setSelectedRequestId(requestId)
+    } else {
+      setSelectedRequestId('')
     }
   }, [requestId])
 
@@ -182,7 +186,10 @@ function MessagesPage() {
 
         const orderedConversations = sortConversations(enriched)
         setConversations(orderedConversations)
-        if (!selectedRequestId && orderedConversations.length > 0) {
+        const shouldAutoSelectFirstConversation =
+          typeof window !== 'undefined' && window.matchMedia('(min-width: 901px)').matches
+
+        if (!selectedRequestId && orderedConversations.length > 0 && shouldAutoSelectFirstConversation) {
           setSelectedRequestId(orderedConversations[0].requestId)
         }
         setError('')
@@ -305,20 +312,57 @@ function MessagesPage() {
     user?.role === 'DONOR' ? conversation.recipientId : conversation.donorId
   )
 
+  const getMessageSenderLabel = (message, mine) => {
+    if (mine) return 'You'
+    return message?.senderUsername || 'Unknown sender'
+  }
+
+  const handleSelectConversation = (conversationRequestId) => {
+    navigate(`/messages/${conversationRequestId}`)
+  }
+
+  const handleBackToConversationList = () => {
+    if (requestId) {
+      navigate('/messages')
+      return
+    }
+
+    setSelectedRequestId('')
+  }
+
   const handleReportConversation = async () => {
     if (!selectedConversation?.requestId) return
     setReportError('')
     setReportFeedback('')
+    setMessageToReport(null)
     setReportModalOpen(true)
   }
 
-  const handleSubmitConversationReport = async ({ reason, details }) => {
+  const handleReportMessage = (message) => {
+    setReportError('')
+    setReportFeedback('')
+    setMessageToReport(message)
+    setReportModalOpen(true)
+  }
+
+  const handleSubmitConversationReport = async ({ reason, details, policyCategory, severity }) => {
     if (!selectedConversation?.requestId) return
     setReportingConversation(true)
     try {
-      await reportRequest(selectedConversation.requestId, reason, details)
-      setReportFeedback('This conversation has been reported and queued for admin review.')
+      await reportRequest(selectedConversation.requestId, {
+        reason,
+        details,
+        policyCategory,
+        severity,
+        reportedMessageId: messageToReport?.id ?? null,
+      })
+      setReportFeedback(
+        messageToReport
+          ? 'This message has been reported and queued for admin review.'
+          : 'This conversation has been reported and queued for admin review.',
+      )
       setReportModalOpen(false)
+      setMessageToReport(null)
     } catch (err) {
       setReportError(err?.response?.data?.message || 'Unable to submit report right now.')
     } finally {
@@ -327,7 +371,7 @@ function MessagesPage() {
   }
 
   return (
-    <section className="messages-workspace">
+    <section className={`messages-workspace ${selectedConversation ? 'messages-workspace--conversation-open' : ''}`.trim()}>
       <aside className="messages-sidebar card">
         <div className="messages-sidebar__header">
           <h1>Messages</h1>
@@ -360,7 +404,7 @@ function MessagesPage() {
                   key={conversation.requestId}
                   type="button"
                   className={`conversation-row ${selected ? 'conversation-row--active' : ''} ${isConversationArchived(conversation.status) ? 'conversation-row--archived' : ''}`.trim()}
-                  onClick={() => setSelectedRequestId(conversation.requestId)}
+                  onClick={() => handleSelectConversation(conversation.requestId)}
                 >
                   <div className="conversation-row__identity">
                     <Avatar
@@ -409,7 +453,16 @@ function MessagesPage() {
           <>
             <header className="messages-main__header">
               <div className="messages-main__header-row">
-                <h2>{selectedConversation.listingTitle || 'Conversation'}</h2>
+                <div className="messages-main__heading">
+                  <button
+                    type="button"
+                    className="messages-main__back-btn"
+                    onClick={handleBackToConversationList}
+                  >
+                    Back
+                  </button>
+                  <h2>{selectedConversation.listingTitle || 'Conversation'}</h2>
+                </div>
                 <button
                   type="button"
                   className="messages-main__report-btn"
@@ -439,7 +492,6 @@ function MessagesPage() {
                 <span className="conversation-badge conversation-badge--role">{getParticipantRole()}</span>
                 <span className="conversation-badge conversation-badge--status">{selectedConversation.status || 'PENDING'}</span>
               </div>
-              <p className="messages-main__request-ref">Request ref: {selectedConversation.requestId}</p>
             </header>
 
             {error && <p className="form-error">{error}</p>}
@@ -462,7 +514,7 @@ function MessagesPage() {
                   return (
                     <article
                       key={message.id}
-                      className={`message-bubble ${mine ? 'message-bubble--mine' : 'message-bubble--other'}`.trim()}
+                        className={`message-bubble ${mine ? 'message-bubble--mine' : 'message-bubble--other'}`.trim()}
                     >
                       <Avatar
                         className="message-bubble__avatar"
@@ -472,11 +524,23 @@ function MessagesPage() {
                       />
                       <div className="message-bubble__body">
                         <div className="message-bubble__meta">
-                          <strong>{message.senderUsername}</strong>
-                          {message.senderRole && <span>{message.senderRole}</span>}
+                          <strong>{getMessageSenderLabel(message, mine)}</strong>
+                          {!mine && message.senderRole && <span>{message.senderRole}</span>}
                         </div>
                         <p className="message-bubble__content">{message.content}</p>
-                        <time className="message-bubble__time">{formatTimestamp(message.timestamp)}</time>
+                        <div className="message-bubble__footer">
+                          <time className="message-bubble__time">{formatTimestamp(message.timestamp)}</time>
+                          {!mine && (
+                            <button
+                              type="button"
+                              className="message-bubble__report-btn"
+                              onClick={() => handleReportMessage(message)}
+                              disabled={reportingConversation}
+                            >
+                              Report message
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </article>
                   )
@@ -508,14 +572,20 @@ function MessagesPage() {
       <ReportModal
         isOpen={reportModalOpen}
         title="Report conversation"
-        subtitle="Describe what happened in this request conversation so an admin can review the evidence."
+        subtitle={
+          messageToReport
+            ? 'Describe what is wrong with this message so an admin can review the exact evidence and its conversation context.'
+            : 'Describe what happened in this request conversation so an admin can review the evidence.'
+        }
         targetLabel={selectedConversation?.listingTitle || 'Selected conversation'}
+        reportedMessage={messageToReport}
         submitting={reportingConversation}
         submitError={reportError}
         onClose={() => {
           if (reportingConversation) return
           setReportModalOpen(false)
           setReportError('')
+          setMessageToReport(null)
         }}
         onSubmit={handleSubmitConversationReport}
       />

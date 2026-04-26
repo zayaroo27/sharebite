@@ -65,12 +65,12 @@ export async function deleteCategory(categoryId) {
   return response.data
 }
 
-export async function resolveReport(reportId) {
-  const response = await api.patch(`/admin/reports/${reportId}/resolve`)
+export async function resolveReport(reportId, payload) {
+  const response = await api.patch(`/admin/reports/${reportId}/resolve`, payload)
   return response.data
 }
 
-export async function dismissReport(reportId) {
-  const response = await api.patch(`/admin/reports/${reportId}/dismiss`)
+export async function dismissReport(reportId, payload) {
+  const response = await api.patch(`/admin/reports/${reportId}/dismiss`, payload)
   return response.data
 }

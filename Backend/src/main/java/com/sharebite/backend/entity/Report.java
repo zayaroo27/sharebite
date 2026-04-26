@@ -30,6 +30,14 @@ public class Report {
     @Column(length = 500)
     private String reason;
 
+    @Enumerated(EnumType.STRING)
+    @Column
+    private ReportPolicyCategory policyCategory;
+
+    @Enumerated(EnumType.STRING)
+    @Column
+    private ReportSeverity severity;
+
     // Longer optional explanation from reporter (maps to TEXT on PostgreSQL)
     @Lob
     @Column(columnDefinition = "TEXT")
@@ -41,9 +49,33 @@ public class Report {
     @Column
     private LocalDateTime reviewedAt;
 
+    @Column
+    private LocalDateTime evidenceCapturedAt;
+
     @Lob
     @Column(columnDefinition = "TEXT")
     private String evidenceSnapshot;
+
+    @Column
+    private UUID reportedMessageId;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String decisionNote;
+
+    @Enumerated(EnumType.STRING)
+    @Column
+    private ModerationActionType actionTaken;
+
+    @Enumerated(EnumType.STRING)
+    @Column
+    private ModerationActionTargetType actionTargetType;
+
+    @Column
+    private UUID actionTargetId;
+
+    @Column
+    private LocalDateTime actionTakenAt;
 
     @ManyToOne
     @JoinColumn(name = "reporter_id", nullable = false)

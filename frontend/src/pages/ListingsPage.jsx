@@ -10,6 +10,57 @@ import '../styles/listings.css'
 
 const SEARCH_DEBOUNCE_MS = 400
 
+function parseLocalDate(value) {
+  if (!value || typeof value !== 'string') return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function getExpiryMeta(raw) {
+  const date = parseLocalDate(raw)
+  if (!date) {
+    return { label: raw || '', className: '' }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  date.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000)
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+
+  if (diffDays < 0) {
+    return {
+      label: `Expired ${formattedDate}`,
+      className: 'listing-card__meta-item--expired',
+    }
+  }
+
+  if (diffDays === 0) {
+    return {
+      label: 'Expires today',
+      className: 'listing-card__meta-item--warning',
+    }
+  }
+
+  if (diffDays <= 7) {
+    return {
+      label: `Expires in ${diffDays} day${diffDays === 1 ? '' : 's'}`,
+      className: 'listing-card__meta-item--warning',
+    }
+  }
+
+  return {
+    label: `Expires ${formattedDate}`,
+    className: '',
+  }
+}
+
 function ListingsPage() {
   const [listings, setListings] = useState([])
   const [categories, setCategories] = useState([])
@@ -276,6 +327,9 @@ function ListingsPage() {
       {!loading && !error && listings.length > 0 && (
         <div className="listings-grid">
           {listings.map((item) => (
+            (() => {
+              const expiryMeta = getExpiryMeta(item.expiryDate)
+              return (
             <article
               key={item.id}
               className="card listing-card"
@@ -307,9 +361,9 @@ function ListingsPage() {
                     </span>
                   )}
                   {item.expiryDate && (
-                    <span className="listing-card__meta-item">
+                    <span className={`listing-card__meta-item ${expiryMeta.className}`.trim()}>
                       <span className="listing-card__meta-icon" aria-hidden="true">🗓</span>
-                      <span>Expires {formatDate(item.expiryDate)}</span>
+                      <span>{expiryMeta.label}</span>
                     </span>
                   )}
                 </div>
@@ -336,6 +390,8 @@ function ListingsPage() {
                 </div>
               </div>
             </article>
+              )
+            })()
           ))}
         </div>
       )}

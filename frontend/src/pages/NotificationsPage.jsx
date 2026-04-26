@@ -3,14 +3,6 @@ import { useNotifications } from '../hooks/useNotifications.js'
 import Button from '../components/Button.jsx'
 import '../styles/notifications.css'
 
-function getTypeDotClass(type) {
-  const normalized = (type || '').toLowerCase()
-  if (normalized === 'success') return 'notification-item__type-dot notification-item__type-dot--success'
-  if (normalized === 'warning') return 'notification-item__type-dot notification-item__type-dot--warning'
-  if (normalized === 'error') return 'notification-item__type-dot notification-item__type-dot--error'
-  return 'notification-item__type-dot notification-item__type-dot--info'
-}
-
 function formatNotificationDate(value) {
   if (!value) return ''
   const date = new Date(value)
@@ -102,10 +94,12 @@ function NotificationsPage() {
             <article
               key={notification.id}
               className={`notification-item ${
-                notification.read ? '' : 'notification-item--unread'
+                notification.read
+                  ? 'notification-item--read'
+                  : 'notification-item--unread'
               }`.trim()}
             >
-              <span className={getTypeDotClass(notification.type)} />
+              {!notification.read && <span className="notification-item__unread-dot" aria-hidden="true" />}
               <div className="notification-item__body">
                 <div className="notification-item__title-row">
                   <h2 className="notification-item__title">

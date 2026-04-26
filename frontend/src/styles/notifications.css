@@ -43,31 +43,22 @@
 }
 
 .notification-item--unread {
-  border-color: rgba(46, 125, 50, 0.4);
-  background-color: #f0f6f1;
+  border-color: rgba(37, 99, 235, 0.18);
+  background-color: #f8fbff;
 }
 
-.notification-item__type-dot {
-  width: 0.6rem;
-  height: 0.6rem;
+.notification-item--read {
+  opacity: 0.72;
+}
+
+.notification-item__unread-dot {
+  width: 0.55rem;
+  height: 0.55rem;
   border-radius: 999px;
   margin-top: 0.3rem;
-}
-
-.notification-item__type-dot--info {
-  background-color: var(--sb-color-info);
-}
-
-.notification-item__type-dot--success {
-  background-color: var(--sb-color-success);
-}
-
-.notification-item__type-dot--warning {
-  background-color: var(--sb-color-warning);
-}
-
-.notification-item__type-dot--error {
-  background-color: var(--sb-color-error);
+  background-color: #2563eb;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
 .notification-item__body {

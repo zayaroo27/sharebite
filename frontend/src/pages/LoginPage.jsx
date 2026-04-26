@@ -79,12 +79,13 @@ function LoginPage() {
               placeholder="your_username or you@example.com"
               error={errors.username}
               required
+              showRequiredMark={false}
             />
 
             <div className="form-field">
               <div className="auth-form__label-row">
                 <label className="form-label" htmlFor="password">
-                  Password <span aria-hidden="true">*</span>
+                  Password 
                 </label>
                 <button
                   type="button"

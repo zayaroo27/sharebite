@@ -6,3 +6,10 @@
   color: #718096;
   background: #ffffff;
 }
+
+@media (max-width: 640px) {
+  .footer {
+    padding: 0.9rem 1rem;
+    font-size: 0.8rem;
+  }
+}

@@ -47,6 +47,16 @@
   gap: 0.2rem;
 }
 
+.report-modal__target p,
+.report-modal__target time {
+  margin: 0;
+}
+
+.report-modal__target--message {
+  background: #fff6f7;
+  border: 1px solid rgba(231, 73, 102, 0.16);
+}
+
 .report-modal__target-label {
   font-size: 0.75rem;
   text-transform: uppercase;

@@ -8,7 +8,10 @@ import java.util.UUID;
 public record ReportCreateRequest(
     @NotBlank String type,
     @NotBlank @Size(max = 500) String reason,
+    String policyCategory,
+    String severity,
     @Size(max = 4000) String details,
     UUID listingId,
-    UUID requestId
+    UUID requestId,
+    UUID reportedMessageId
 ) {}

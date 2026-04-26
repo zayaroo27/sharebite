@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sharebite.backend.dto.AdminListingEvidenceResponse;
 import com.sharebite.backend.dto.AdminReportDetailResponse;
 import com.sharebite.backend.dto.AdminReportMessageResponse;
+import com.sharebite.backend.dto.AdminReportReviewRequest;
 import com.sharebite.backend.dto.AdminReportResponse;
 import com.sharebite.backend.dto.AdminReportUserResponse;
 import com.sharebite.backend.dto.AdminRequestEvidenceResponse;
@@ -57,6 +58,9 @@ public class AdminService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private NotificationService notificationService;
 
     public List<AdminUserResponse> getAllUsers() {
         List<User> users = userRepository.findAll();
@@ -144,32 +148,48 @@ public class AdminService {
                 .orElseThrow(() -> new NotFoundException("Report not found"));
 
         JsonNode snapshot = readSnapshot(report);
-        AdminListingEvidenceResponse listingEvidence = buildListingEvidence(report, snapshot);
-        AdminRequestEvidenceResponse requestEvidence = buildRequestEvidence(report, snapshot);
+        AdminListingEvidenceResponse listingEvidence = buildSnapshotListingEvidence(report, snapshot);
+        AdminRequestEvidenceResponse requestEvidence = buildSnapshotRequestEvidence(report, snapshot);
+        AdminListingEvidenceResponse currentListingEvidence = buildCurrentListingEvidence(report);
+        AdminRequestEvidenceResponse currentRequestEvidence = buildCurrentRequestEvidence(report);
 
         return new AdminReportDetailResponse(
                 report.getId(),
                 report.getType().name(),
                 report.getStatus().name(),
                 report.getReason(),
+                report.getPolicyCategory() != null ? report.getPolicyCategory().name() : null,
+                report.getSeverity() != null ? report.getSeverity().name() : null,
                 report.getDetails(),
                 report.getCreatedAt(),
+                report.getEvidenceCapturedAt(),
                 report.getReviewedAt(),
                 report.getReviewedByAdmin() != null ? report.getReviewedByAdmin().getUsername() : null,
+                report.getReportedMessageId(),
+                readText(snapshot, "reportedMessageExcerpt"),
+                report.getDecisionNote(),
+                report.getActionTaken() != null ? report.getActionTaken().name() : null,
+                report.getActionTargetType() != null ? report.getActionTargetType().name() : null,
+                report.getActionTargetId(),
+                report.getActionTakenAt(),
                 buildUserResponse(report.getReporter()),
                 listingEvidence,
                 requestEvidence,
+                currentListingEvidence,
+                currentRequestEvidence,
                 report.getStatus() == ReportStatus.PENDING
         );
     }
 
     @Transactional
-    public AdminReportResponse resolveReport(UUID reportId) {
+    public AdminReportResponse resolveReport(UUID reportId, AdminReportReviewRequest reviewRequest) {
         User admin = getCurrentAdmin();
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new NotFoundException("Report not found"));
         ensurePending(report);
 
+        applyReviewMetadata(report, reviewRequest, false);
+        executeAutomaticModerationAction(report);
         report.setStatus(ReportStatus.RESOLVED);
         report.setReviewedByAdmin(admin);
         report.setReviewedAt(LocalDateTime.now());
@@ -177,12 +197,13 @@ public class AdminService {
     }
 
     @Transactional
-    public AdminReportResponse dismissReport(UUID reportId) {
+    public AdminReportResponse dismissReport(UUID reportId, AdminReportReviewRequest reviewRequest) {
         User admin = getCurrentAdmin();
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new NotFoundException("Report not found"));
         ensurePending(report);
 
+        applyReviewMetadata(report, reviewRequest, true);
         report.setStatus(ReportStatus.DISMISSED);
         report.setReviewedByAdmin(admin);
         report.setReviewedAt(LocalDateTime.now());
@@ -221,7 +242,8 @@ public class AdminService {
                 user.getEmail(),
                 user.getRole().name(),
                 user.getStatus().name(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getMonitoredAt()
         );
     }
 
@@ -242,17 +264,22 @@ public class AdminService {
                 report.getType() != null ? report.getType().name() : null,
                 report.getStatus() != null ? report.getStatus().name() : null,
                 report.getReason(),
+                report.getPolicyCategory() != null ? report.getPolicyCategory().name() : null,
+                report.getSeverity() != null ? report.getSeverity().name() : null,
                 report.getDetails(),
                 listingId,
                 listingTitle,
                 requestId,
+                report.getReportedMessageId(),
                 report.getReporter() != null ? report.getReporter().getUsername() : null,
                 (report.getReporter() != null && report.getReporter().getRole() != null)
                         ? report.getReporter().getRole().name()
                         : null,
                 report.getCreatedAt(),
+                report.getEvidenceCapturedAt(),
                 report.getReviewedAt(),
-                report.getReviewedByAdmin() != null ? report.getReviewedByAdmin().getUsername() : null
+                report.getReviewedByAdmin() != null ? report.getReviewedByAdmin().getUsername() : null,
+                report.getActionTaken() != null ? report.getActionTaken().name() : null
         );
     }
 
@@ -276,109 +303,112 @@ public class AdminService {
         }
     }
 
-    private AdminListingEvidenceResponse buildListingEvidence(Report report, JsonNode snapshot) {
-        if (report.getType() == ReportType.LISTING && report.getListing() != null) {
-            FoodListing listing = report.getListing();
+    private AdminListingEvidenceResponse buildSnapshotListingEvidence(Report report, JsonNode snapshot) {
+        JsonNode listingNode = getNode(snapshot, "listing");
+        if (listingNode != null) {
             return new AdminListingEvidenceResponse(
-                    listing.getId(),
-                    listing.getTitle(),
-                    listing.getDescription(),
-                    listing.getCategory() != null ? listing.getCategory().getName() : null,
-                    listing.getQuantity(),
-                    listing.getExpiryDate(),
-                    listing.getLocation(),
-                    listing.getImageUrl(),
-                    listing.getStatus() != null ? listing.getStatus().name() : null,
-                    buildUserResponse(listing.getDonor()),
-                    false
+                    readUuid(listingNode, "id"),
+                    readText(listingNode, "title"),
+                    readText(listingNode, "description"),
+                    readText(listingNode, "categoryName"),
+                    readText(listingNode, "quantity"),
+                    readLocalDate(listingNode, "expiryDate"),
+                    readText(listingNode, "location"),
+                    readText(listingNode, "imageUrl"),
+                    readText(listingNode, "status"),
+                    buildUserResponse(getNode(snapshot, "donor")),
+                    true
             );
         }
 
-        JsonNode listingNode = getNode(snapshot, "listing");
-        if (listingNode == null) {
+        return buildCurrentListingEvidence(report);
+    }
+
+    private AdminRequestEvidenceResponse buildSnapshotRequestEvidence(Report report, JsonNode snapshot) {
+        JsonNode requestNode = getNode(snapshot, "request");
+        if (requestNode != null) {
+            JsonNode listingNode = getNode(snapshot, "listing");
+            List<AdminReportMessageResponse> messages = readMessageResponses(getNode(snapshot, "messages"));
+
+            return new AdminRequestEvidenceResponse(
+                    readUuid(requestNode, "id"),
+                    readText(requestNode, "status"),
+                    readLocalDateTime(requestNode, "requestDate"),
+                    readLocalDateTime(requestNode, "decisionDate"),
+                    readLocalDateTime(requestNode, "completedDate"),
+                    listingNode == null ? null : new AdminListingEvidenceResponse(
+                            readUuid(listingNode, "id"),
+                            readText(listingNode, "title"),
+                            readText(listingNode, "description"),
+                            readText(listingNode, "categoryName"),
+                            readText(listingNode, "quantity"),
+                            readLocalDate(listingNode, "expiryDate"),
+                            readText(listingNode, "location"),
+                            readText(listingNode, "imageUrl"),
+                            readText(listingNode, "status"),
+                            buildUserResponse(getNode(snapshot, "donor")),
+                            true
+                    ),
+                    buildUserResponse(getNode(snapshot, "donor")),
+                    buildUserResponse(getNode(snapshot, "recipient")),
+                    report.getReportedMessageId() != null ? report.getReportedMessageId() : readUuid(snapshot, "reportedMessageId"),
+                    messages,
+                    true
+            );
+        }
+
+        return buildCurrentRequestEvidence(report);
+    }
+
+    private AdminListingEvidenceResponse buildCurrentListingEvidence(Report report) {
+        FoodListing listing = null;
+        if (report.getListing() != null) {
+            listing = report.getListing();
+        } else if (report.getRequest() != null && report.getRequest().getListing() != null) {
+            listing = report.getRequest().getListing();
+        }
+        if (listing == null) {
             return null;
         }
 
         return new AdminListingEvidenceResponse(
-                readUuid(listingNode, "id"),
-                readText(listingNode, "title"),
-                readText(listingNode, "description"),
-                readText(listingNode, "categoryName"),
-                readText(listingNode, "quantity"),
-                readLocalDate(listingNode, "expiryDate"),
-                readText(listingNode, "location"),
-                readText(listingNode, "imageUrl"),
-                readText(listingNode, "status"),
-                buildUserResponse(getNode(snapshot, "donor")),
-                true
+                listing.getId(),
+                listing.getTitle(),
+                listing.getDescription(),
+                listing.getCategory() != null ? listing.getCategory().getName() : null,
+                listing.getQuantity(),
+                listing.getExpiryDate(),
+                listing.getLocation(),
+                listing.getImageUrl(),
+                listing.getStatus() != null ? listing.getStatus().name() : null,
+                buildUserResponse(listing.getDonor()),
+                false
         );
     }
 
-    private AdminRequestEvidenceResponse buildRequestEvidence(Report report, JsonNode snapshot) {
-        if (report.getType() == ReportType.REQUEST && report.getRequest() != null) {
-            ListingRequest request = report.getRequest();
-            List<AdminReportMessageResponse> messages = messageRepository.findByRequestIdOrderByTimestampAsc(request.getId())
-                    .stream()
-                    .map(this::buildMessageResponse)
-                    .collect(Collectors.toList());
-
-            return new AdminRequestEvidenceResponse(
-                    request.getId(),
-                    request.getStatus() != null ? request.getStatus().name() : null,
-                    request.getRequestDate(),
-                    request.getDecisionDate(),
-                    request.getCompletedDate(),
-                    new AdminListingEvidenceResponse(
-                            request.getListing().getId(),
-                            request.getListing().getTitle(),
-                            request.getListing().getDescription(),
-                            request.getListing().getCategory() != null ? request.getListing().getCategory().getName() : null,
-                            request.getListing().getQuantity(),
-                            request.getListing().getExpiryDate(),
-                            request.getListing().getLocation(),
-                            request.getListing().getImageUrl(),
-                            request.getListing().getStatus() != null ? request.getListing().getStatus().name() : null,
-                            buildUserResponse(request.getListing().getDonor()),
-                            false
-                    ),
-                    buildUserResponse(request.getListing().getDonor()),
-                    buildUserResponse(request.getRecipient()),
-                    messages,
-                    false
-            );
-        }
-
-        JsonNode requestNode = getNode(snapshot, "request");
-        if (requestNode == null) {
+    private AdminRequestEvidenceResponse buildCurrentRequestEvidence(Report report) {
+        if (report.getType() != ReportType.REQUEST || report.getRequest() == null) {
             return null;
         }
 
-        JsonNode listingNode = getNode(snapshot, "listing");
-        List<AdminReportMessageResponse> messages = readMessageResponses(getNode(snapshot, "messages"));
+        ListingRequest request = report.getRequest();
+        List<AdminReportMessageResponse> messages = messageRepository.findByRequestIdOrderByTimestampAsc(request.getId())
+                .stream()
+                .map(this::buildMessageResponse)
+                .collect(Collectors.toList());
 
         return new AdminRequestEvidenceResponse(
-                readUuid(requestNode, "id"),
-                readText(requestNode, "status"),
-                readLocalDateTime(requestNode, "requestDate"),
-                readLocalDateTime(requestNode, "decisionDate"),
-                readLocalDateTime(requestNode, "completedDate"),
-                listingNode == null ? null : new AdminListingEvidenceResponse(
-                        readUuid(listingNode, "id"),
-                        readText(listingNode, "title"),
-                        readText(listingNode, "description"),
-                        readText(listingNode, "categoryName"),
-                        readText(listingNode, "quantity"),
-                        readLocalDate(listingNode, "expiryDate"),
-                        readText(listingNode, "location"),
-                        readText(listingNode, "imageUrl"),
-                        readText(listingNode, "status"),
-                        buildUserResponse(getNode(snapshot, "donor")),
-                        true
-                ),
-                buildUserResponse(getNode(snapshot, "donor")),
-                buildUserResponse(getNode(snapshot, "recipient")),
+                request.getId(),
+                request.getStatus() != null ? request.getStatus().name() : null,
+                request.getRequestDate(),
+                request.getDecisionDate(),
+                request.getCompletedDate(),
+                buildCurrentListingEvidence(report),
+                buildUserResponse(request.getListing().getDonor()),
+                buildUserResponse(request.getRecipient()),
+                report.getReportedMessageId(),
                 messages,
-                true
+                false
         );
     }
 
@@ -434,6 +464,208 @@ public class AdminService {
                 readText(userNode, "role"),
                 readText(userNode, "organisationName")
         );
+    }
+
+    private void applyReviewMetadata(Report report, AdminReportReviewRequest reviewRequest, boolean dismissedReview) {
+        if (reviewRequest == null || reviewRequest.decisionNote() == null || reviewRequest.decisionNote().isBlank()) {
+            throw new BadRequestException("A decision note is required when reviewing a report");
+        }
+
+        report.setDecisionNote(trimmed(reviewRequest.decisionNote(), 4000));
+
+        if (dismissedReview) {
+            report.setActionTaken(ModerationActionType.NONE);
+            report.setActionTargetType(null);
+            report.setActionTargetId(null);
+            report.setActionTakenAt(null);
+            return;
+        }
+
+        ModerationActionType actionTaken = parseActionTaken(reviewRequest.actionTaken());
+        ModerationActionTargetType actionTargetType = parseActionTargetType(reviewRequest.actionTargetType());
+        UUID actionTargetId = reviewRequest.actionTargetId();
+
+        if (actionTaken == ModerationActionType.NONE) {
+            if (actionTargetType != null || actionTargetId != null) {
+                throw new BadRequestException("Do not provide an action target when no moderation action was taken");
+            }
+            report.setActionTaken(actionTaken);
+            report.setActionTargetType(null);
+            report.setActionTargetId(null);
+            report.setActionTakenAt(null);
+            return;
+        }
+
+        if (actionTargetType == null || actionTargetId == null) {
+            throw new BadRequestException("Action target type and target id are required when recording a moderation action");
+        }
+
+        report.setActionTaken(actionTaken);
+        report.setActionTargetType(actionTargetType);
+        report.setActionTargetId(actionTargetId);
+        report.setActionTakenAt(LocalDateTime.now());
+    }
+
+    private void executeAutomaticModerationAction(Report report) {
+        ModerationActionType actionTaken = report.getActionTaken();
+        if (actionTaken == null || actionTaken == ModerationActionType.NONE) {
+            return;
+        }
+
+        if (report.getActionTargetType() == null || report.getActionTargetId() == null) {
+            return;
+        }
+
+        switch (actionTaken) {
+            case WARN_USER -> warnUser(report);
+            case SUSPEND_USER -> suspendUserFromReport(report);
+            case REMOVE_LISTING -> removeListingFromPlatform(report);
+            case MONITOR_ACCOUNT -> markUserUnderMonitoring(report);
+            case ESCALATE -> escalateReport(report);
+            default -> { }
+        }
+    }
+
+    private void warnUser(Report report) {
+        User user = getActionTargetUser(report, ModerationActionType.WARN_USER);
+        notificationService.createNotification(
+                user,
+                "Account warning",
+                buildDecisionMessage(
+                        "An admin issued a warning on your ShareBite account.",
+                        report.getDecisionNote()
+                ),
+                NotificationType.MODERATION_WARNING
+        );
+    }
+
+    private void suspendUserFromReport(Report report) {
+        User user = getActionTargetUser(report, ModerationActionType.SUSPEND_USER);
+        if (user.getStatus() != AccountStatus.SUSPENDED) {
+            user.setStatus(AccountStatus.SUSPENDED);
+            userRepository.save(user);
+        }
+
+        notificationService.createNotification(
+                user,
+                "Account suspended",
+                buildDecisionMessage(
+                        "An admin suspended your ShareBite account.",
+                        report.getDecisionNote()
+                ),
+                NotificationType.ACCOUNT_SUSPENDED
+        );
+    }
+
+    private void markUserUnderMonitoring(Report report) {
+        User user = getActionTargetUser(report, ModerationActionType.MONITOR_ACCOUNT);
+        if (user.getMonitoredAt() == null) {
+            user.setMonitoredAt(LocalDateTime.now());
+            userRepository.save(user);
+        }
+        notificationService.createNotification(
+                user,
+                "Account under monitoring",
+                buildDecisionMessage(
+                        "An admin placed your ShareBite account under monitoring.",
+                        report.getDecisionNote()
+                ),
+                NotificationType.ACCOUNT_MONITORED
+        );
+    }
+
+    private void removeListingFromPlatform(Report report) {
+        FoodListing listing = getActionTargetListing(report, ModerationActionType.REMOVE_LISTING);
+        if (listing.getRemovedByModerationAt() == null) {
+            listing.setRemovedByModerationAt(LocalDateTime.now());
+            foodListingRepository.save(listing);
+        }
+
+        notificationService.createNotification(
+                listing.getDonor(),
+                "Listing removed by moderation",
+                buildDecisionMessage(
+                        "An admin removed one of your ShareBite listings from public visibility.",
+                        report.getDecisionNote()
+                ),
+                NotificationType.LISTING_REMOVED
+        );
+    }
+
+    private void escalateReport(Report report) {
+        List<User> adminsToNotify = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .filter(user -> user.getStatus() == AccountStatus.ACTIVE)
+                .filter(user -> report.getReviewedByAdmin() == null || !user.getId().equals(report.getReviewedByAdmin().getId()))
+                .toList();
+
+        for (User admin : adminsToNotify) {
+            notificationService.createNotification(
+                    admin,
+                    "Report escalated for follow-up",
+                    buildDecisionMessage(
+                            "A moderation case was escalated and needs additional admin attention. Report ID: " + report.getId(),
+                            report.getDecisionNote()
+                    ),
+                    NotificationType.REPORT_ESCALATED
+            );
+        }
+    }
+
+    private User getActionTargetUser(Report report, ModerationActionType actionType) {
+        if (report.getActionTargetType() != ModerationActionTargetType.USER) {
+            throw new BadRequestException(actionType.name() + " requires a USER target");
+        }
+
+        return userRepository.findById(report.getActionTargetId())
+                .orElseThrow(() -> new NotFoundException("Moderation action target user not found"));
+    }
+
+    private FoodListing getActionTargetListing(Report report, ModerationActionType actionType) {
+        if (report.getActionTargetType() != ModerationActionTargetType.LISTING) {
+            throw new BadRequestException(actionType.name() + " requires a LISTING target");
+        }
+
+        return foodListingRepository.findById(report.getActionTargetId())
+                .orElseThrow(() -> new NotFoundException("Moderation action target listing not found"));
+    }
+
+    private String buildDecisionMessage(String prefix, String decisionNote) {
+        String note = trimmed(decisionNote, 3000);
+        if (note == null) {
+            return prefix;
+        }
+        return prefix + " Reason: " + note;
+    }
+
+    private ModerationActionType parseActionTaken(String rawAction) {
+        if (rawAction == null || rawAction.isBlank()) {
+            return ModerationActionType.NONE;
+        }
+        try {
+            return ModerationActionType.valueOf(rawAction.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new BadRequestException("Invalid moderation action");
+        }
+    }
+
+    private ModerationActionTargetType parseActionTargetType(String rawTargetType) {
+        if (rawTargetType == null || rawTargetType.isBlank()) {
+            return null;
+        }
+        try {
+            return ModerationActionTargetType.valueOf(rawTargetType.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new BadRequestException("Invalid moderation action target type");
+        }
+    }
+
+    private String trimmed(String value, int maxLength) {
+        String normalized = value == null ? null : value.trim();
+        if (normalized == null || normalized.isBlank()) {
+            return null;
+        }
+        return normalized.length() > maxLength ? normalized.substring(0, maxLength) : normalized;
     }
 
     private JsonNode readSnapshot(Report report) {

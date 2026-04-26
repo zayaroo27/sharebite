@@ -4,6 +4,8 @@ function Button({ variant = 'primary', type = 'button', className = '', ...props
       ? 'btn-secondary'
       : variant === 'danger'
         ? 'btn-danger'
+      : variant === 'ghost'
+        ? 'btn-ghost'
       : variant === 'outline'
         ? 'btn-outline'
         : 'btn-primary'

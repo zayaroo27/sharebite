@@ -9,5 +9,6 @@ public record AdminUserResponse(
     String email,
     String role,
     String status,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    LocalDateTime monitoredAt
 ) {}

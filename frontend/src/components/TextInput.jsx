@@ -8,6 +8,7 @@ function TextInput({
   error,
   helperText,
   required,
+  showRequiredMark = true,
   ...props
 }) {
   const inputClass = [
@@ -22,7 +23,7 @@ function TextInput({
       {label && (
         <label className="form-label" htmlFor={id}>
           {label}
-          {required && <span aria-hidden="true"> *</span>}
+          {required && showRequiredMark && <span aria-hidden="true"> *</span>}
         </label>
       )}
       <input

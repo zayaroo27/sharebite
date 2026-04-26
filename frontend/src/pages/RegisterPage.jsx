@@ -7,11 +7,11 @@ import { register } from '../services/authService.js'
 import { useAuth } from '../hooks/useAuth.js'
 
 const PASSWORD_RULE_MESSAGE =
-  'Password must be at least 8 characters long and include at least one letter and one number.'
+  'Password must be at least 8 characters long and include at least one uppercase letter, one number, and one special character.'
 
 function getPasswordValidationMessage(password) {
   if (!password) return 'Password is required.'
-  if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+  if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password)) {
     return PASSWORD_RULE_MESSAGE
   }
   return ''
@@ -103,6 +103,7 @@ function RegisterPage() {
               placeholder="alex_chen"
               error={errors.username}
               required
+              showRequiredMark={false}
             />
 
             <TextInput
@@ -115,12 +116,13 @@ function RegisterPage() {
               placeholder="you@example.com"
               error={errors.email}
               required
+              showRequiredMark={false}
             />
 
             <div className="form-field">
               <div className="auth-form__label-row">
                 <label className="form-label" htmlFor="password">
-                  Password <span aria-hidden="true">*</span>
+                  Password 
                 </label>
                 <button
                   type="button"
@@ -145,7 +147,7 @@ function RegisterPage() {
                 required
               />
               <p id="password-helper" className="form-helper">
-                At least 8 characters, including one letter and one number.
+                At least 8 characters, including one uppercase letter, one number, and one special character.
               </p>
               {errors.password && (
                 <p id="password-error" className="form-error">

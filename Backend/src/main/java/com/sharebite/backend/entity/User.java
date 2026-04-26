@@ -43,6 +43,9 @@ public class User {
     @Column(nullable = false)
     private AccountStatus status;
 
+    @Column
+    private LocalDateTime monitoredAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

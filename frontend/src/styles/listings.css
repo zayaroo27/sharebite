@@ -200,6 +200,28 @@
   line-height: 1.35;
 }
 
+.listing-card__meta-item--warning {
+  background: #fff7eb;
+  border-radius: 999px;
+  padding-inline: 0.35rem 0.5rem;
+  color: #b86a13;
+}
+
+.listing-card__meta-item--warning .listing-card__meta-icon {
+  background: rgba(235, 163, 61, 0.16);
+}
+
+.listing-card__meta-item--expired {
+  background: #fdeeee;
+  border-radius: 999px;
+  padding-inline: 0.35rem 0.5rem;
+  color: #b93838;
+}
+
+.listing-card__meta-item--expired .listing-card__meta-icon {
+  background: rgba(198, 40, 40, 0.12);
+}
+
 .listing-card__meta-icon {
   width: 1.7rem;
   height: 1.7rem;

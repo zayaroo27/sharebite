@@ -13,6 +13,7 @@ public record AdminRequestEvidenceResponse(
     AdminListingEvidenceResponse listing,
     AdminReportUserResponse donor,
     AdminReportUserResponse recipient,
+    UUID reportedMessageId,
     List<AdminReportMessageResponse> messages,
     boolean fromSnapshot
 ) {}

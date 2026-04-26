@@ -77,7 +77,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(18rem, 21.5rem));
   gap: 1.35rem;
-  justify-content: center;
+  justify-content: start;
   align-items: stretch;
 }
 
@@ -185,12 +185,11 @@
 }
 
 .donor-listing-card__delete-btn {
-  border-color: #f16b81;
-  color: #e74966;
+  box-shadow: 0 8px 16px rgba(198, 40, 40, 0.14);
 }
 
 .donor-listing-card__delete-btn:hover {
-  background: #fff1f4;
+  box-shadow: 0 10px 18px rgba(163, 32, 32, 0.18);
 }
 
 .donor-dashboard__requests-card {
@@ -204,6 +203,15 @@
   flex-direction: column;
 }
 
+.donor-dashboard__requests-list--scrollable {
+  max-height: 19rem;
+  overflow-y: auto;
+}
+
+.donor-dashboard__requests-list--history {
+  max-height: 16rem;
+}
+
 .donor-dashboard__request-row {
   display: flex;
   justify-content: space-between;
@@ -215,6 +223,10 @@
 
 .donor-dashboard__request-row:last-child {
   border-bottom: none;
+}
+
+.donor-dashboard__request-row--history {
+  align-items: flex-start;
 }
 
 .donor-dashboard__request-main {
@@ -245,6 +257,12 @@
   font-size: 0.72rem;
 }
 
+.donor-dashboard__request-status--completed {
+  background: #ebf8ee;
+  color: #32a85a;
+  border-color: rgba(50, 168, 90, 0.28);
+}
+
 .donor-dashboard__request-actions {
   display: flex;
   gap: 0.55rem;
@@ -262,12 +280,11 @@
 }
 
 .donor-dashboard__reject-btn {
-  border-color: #f16b81;
-  color: #e74966;
+  box-shadow: 0 8px 16px rgba(198, 40, 40, 0.14);
 }
 
 .donor-dashboard__reject-btn:hover {
-  background: #fff1f4;
+  box-shadow: 0 10px 18px rgba(163, 32, 32, 0.18);
 }
 
 .donor-dashboard__complete-btn {
@@ -325,6 +342,10 @@
     align-items: flex-start;
   }
 
+  .donor-dashboard__create-btn {
+    width: 100%;
+  }
+
   .donor-dashboard__request-row {
     flex-direction: column;
     align-items: flex-start;
@@ -341,11 +362,39 @@
 }
 
 @media (max-width: 640px) {
+  .donor-dashboard__page-title,
+  .donor-dashboard__section-title,
+  .donor-dashboard__request-title {
+    font-size: 1.55rem;
+  }
+
+  .donor-dashboard__create-btn {
+    width: 100%;
+  }
+
   .donor-dashboard__listing-grid {
     grid-template-columns: 1fr;
   }
 
   .donor-dashboard__summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .donor-listing-card__footer,
+  .donor-listing-card__actions,
+  .donor-dashboard__request-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .donor-listing-card__actions .btn,
+  .donor-dashboard__request-actions .btn {
+    width: 100%;
+  }
+
+  .donor-dashboard__requests-list--scrollable,
+  .donor-dashboard__requests-list--history {
+    max-height: none;
+    overflow-y: visible;
   }
 }

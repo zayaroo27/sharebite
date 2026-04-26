@@ -15,55 +15,62 @@ import java.util.UUID;
 @Repository
 public interface FoodListingRepository extends JpaRepository<FoodListing, UUID> {
 
-    List<FoodListing> findByStatus(ListingStatus status);
+    @Query("SELECT f FROM FoodListing f WHERE f.status = :status AND f.removedByModerationAt IS NULL")
+    List<FoodListing> findByStatus(@Param("status") ListingStatus status);
 
-    List<FoodListing> findByDonorId(UUID donorId);
+    @Query("SELECT f FROM FoodListing f WHERE f.donor.id = :donorId AND f.removedByModerationAt IS NULL ORDER BY f.createdAt DESC")
+    List<FoodListing> findByDonorId(@Param("donorId") UUID donorId);
 
-    long countByDonorId(UUID donorId);
+    @Query("SELECT COUNT(f) FROM FoodListing f WHERE f.donor.id = :donorId AND f.removedByModerationAt IS NULL")
+    long countByDonorId(@Param("donorId") UUID donorId);
 
-    long countByDonorIdAndStatus(UUID donorId, ListingStatus status);
+    @Query("SELECT COUNT(f) FROM FoodListing f WHERE f.donor.id = :donorId AND f.status = :status AND f.removedByModerationAt IS NULL")
+    long countByDonorIdAndStatus(@Param("donorId") UUID donorId, @Param("status") ListingStatus status);
 
-    long countByDonorIdAndStatusIn(UUID donorId, Collection<ListingStatus> statuses);
+    @Query("SELECT COUNT(f) FROM FoodListing f WHERE f.donor.id = :donorId AND f.status IN :statuses AND f.removedByModerationAt IS NULL")
+    long countByDonorIdAndStatusIn(@Param("donorId") UUID donorId, @Param("statuses") Collection<ListingStatus> statuses);
 
-       List<FoodListing> findByStatusAndExpiryDateBefore(ListingStatus status, LocalDate date);
+    @Query("SELECT f FROM FoodListing f WHERE f.status = :status AND f.expiryDate < :date AND f.removedByModerationAt IS NULL")
+    List<FoodListing> findByStatusAndExpiryDateBefore(@Param("status") ListingStatus status, @Param("date") LocalDate date);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = :status AND f.expiryDate >= CURRENT_DATE")
+    @Query("SELECT f FROM FoodListing f WHERE f.status = :status AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL")
     List<FoodListing> findAvailableNotExpired(@Param("status") ListingStatus status);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE")
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL")
     List<FoodListing> findAvailableNotExpired();
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.category.id = :categoryId")
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.category.id = :categoryId AND f.removedByModerationAt IS NULL")
     List<FoodListing> findAvailableNotExpiredByCategoryId(@Param("categoryId") UUID categoryId);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND " +
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL AND " +
            "(LOWER(f.title) LIKE CONCAT('%', LOWER(:keyword), '%') OR LOWER(f.description) LIKE CONCAT('%', LOWER(:keyword), '%'))")
     List<FoodListing> findAvailableNotExpiredByKeyword(@Param("keyword") String keyword);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND " +
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL AND " +
            "(LOWER(f.title) LIKE CONCAT('%', LOWER(:keyword), '%') OR LOWER(f.description) LIKE CONCAT('%', LOWER(:keyword), '%')) AND " +
            "f.category.id = :categoryId")
     List<FoodListing> findAvailableNotExpiredByKeywordAndCategoryId(@Param("keyword") String keyword, @Param("categoryId") UUID categoryId);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND " +
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL AND " +
            "LOWER(f.location) LIKE CONCAT('%', LOWER(:location), '%')")
     List<FoodListing> findAvailableNotExpiredByLocation(@Param("location") String location);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND " +
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL AND " +
            "LOWER(f.location) LIKE CONCAT('%', LOWER(:location), '%') AND " +
            "f.category.id = :categoryId")
     List<FoodListing> findAvailableNotExpiredByLocationAndCategoryId(@Param("location") String location, @Param("categoryId") UUID categoryId);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND " +
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL AND " +
            "(LOWER(f.title) LIKE CONCAT('%', LOWER(:keyword), '%') OR LOWER(f.description) LIKE CONCAT('%', LOWER(:keyword), '%')) AND " +
            "LOWER(f.location) LIKE CONCAT('%', LOWER(:location), '%')")
     List<FoodListing> findAvailableNotExpiredByKeywordAndLocation(@Param("keyword") String keyword, @Param("location") String location);
 
-    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND " +
+    @Query("SELECT f FROM FoodListing f WHERE f.status = 'AVAILABLE' AND f.expiryDate >= CURRENT_DATE AND f.removedByModerationAt IS NULL AND " +
            "(LOWER(f.title) LIKE CONCAT('%', LOWER(:keyword), '%') OR LOWER(f.description) LIKE CONCAT('%', LOWER(:keyword), '%')) AND " +
            "LOWER(f.location) LIKE CONCAT('%', LOWER(:location), '%') AND " +
            "f.category.id = :categoryId")
     List<FoodListing> findAvailableNotExpiredByKeywordAndLocationAndCategoryId(@Param("keyword") String keyword, @Param("location") String location, @Param("categoryId") UUID categoryId);
 
-    long countByStatus(ListingStatus status);
+    @Query("SELECT COUNT(f) FROM FoodListing f WHERE f.status = :status AND f.removedByModerationAt IS NULL")
+    long countByStatus(@Param("status") ListingStatus status);
 }

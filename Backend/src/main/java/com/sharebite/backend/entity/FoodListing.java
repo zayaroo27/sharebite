@@ -38,6 +38,9 @@ public class FoodListing {
     @Column(nullable = false)
     private ListingStatus status;
 
+    @Column
+    private LocalDateTime removedByModerationAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

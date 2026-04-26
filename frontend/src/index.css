@@ -78,6 +78,13 @@ body {
   color: var(--sb-color-text-main);
 }
 
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
 a {
   font-weight: 500;
   color: var(--sb-color-primary);

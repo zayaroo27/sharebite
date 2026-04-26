@@ -31,6 +31,15 @@ function hasRecipientConfirmedCompletion(request) {
   return Boolean(request?.recipientCompletedAt)
 }
 
+function getHistoryDate(request) {
+  return request.completedDate
+    || request.recipientCompletedAt
+    || request.donorCompletedAt
+    || request.decisionDate
+    || request.requestDate
+    || request.requestedAt
+}
+
 function RecipientDashboardPage() {
   const [recentListings, setRecentListings] = useState([])
   const [myRequests, setMyRequests] = useState([])
@@ -67,6 +76,18 @@ function RecipientDashboardPage() {
   useEffect(() => {
     loadDashboard()
   }, [])
+
+  const activeRequests = myRequests.filter((request) => {
+    const status = String(request.status || '').toUpperCase()
+    return status === 'PENDING' || status === 'APPROVED'
+  })
+
+  const requestHistory = [...myRequests]
+    .filter((request) => {
+      const status = String(request.status || '').toUpperCase()
+      return status === 'COMPLETED' || status === 'REJECTED' || status === 'CANCELED'
+    })
+    .sort((left, right) => new Date(getHistoryDate(right)).getTime() - new Date(getHistoryDate(left)).getTime())
 
   const handleViewListing = (id) => {
     if (!id) return
@@ -137,8 +158,12 @@ function RecipientDashboardPage() {
       <article>
         <h2 className="recipient-dashboard__section-title">My Requests</h2>
         <div className="recipient-dashboard__table-wrap">
-          {myRequests.length === 0 ? (
-            <div className="recipient-dashboard__empty">You have not made any requests yet.</div>
+          {activeRequests.length === 0 ? (
+            <div className="recipient-dashboard__empty">
+              {myRequests.length === 0
+                ? 'You have not made any requests yet.'
+                : 'You have no active requests right now. Past outcomes are shown in your request history below.'}
+            </div>
           ) : (
             <table className="recipient-dashboard__table">
               <thead>
@@ -148,10 +173,11 @@ function RecipientDashboardPage() {
                   <th>Pickup Date</th>
                   <th>Status</th>
                   <th>Actions</th>
+                  <th>Receipt Confirmation</th>
                 </tr>
               </thead>
               <tbody>
-                {myRequests.map((request) => {
+                {activeRequests.map((request) => {
                   const status = String(request.status || '').toLowerCase()
                   const canView = status === 'approved' || status === 'completed'
                   const canCancel = status === 'pending'
@@ -164,54 +190,127 @@ function RecipientDashboardPage() {
 
                   return (
                     <tr key={request.requestId ?? request.id}>
-                      <td>{request.listingTitle || '—'}</td>
-                      <td>{formatDate(request.requestDate || request.requestedAt)}</td>
-                      <td>{formatDate(request.pickupDate || request.decisionDate)}</td>
-                      <td>
+                      <td data-label="Food Item">{request.listingTitle || '—'}</td>
+                      <td data-label="Request Date">{formatDate(request.requestDate || request.requestedAt)}</td>
+                      <td data-label="Pickup Date">{formatDate(request.pickupDate || request.decisionDate)}</td>
+                      <td data-label="Status">
                         <span className={getStatusClass(request.status)}>
                           {request.status || 'Unknown'}
                         </span>
                       </td>
-                      <td>
-                        {canView && (
-                          <button
-                            type="button"
-                            className="recipient-dashboard__action-link recipient-dashboard__action-link--view"
-                            onClick={() => handleViewListing(request.listingId)}
-                          >
-                            View Details
-                          </button>
-                        )}
-                        {canConfirmReceived && (
-                          <button
-                            type="button"
-                            className="recipient-dashboard__action-link recipient-dashboard__action-link--confirm"
-                            onClick={() => handleConfirmReceived(request.requestId ?? request.id)}
-                            disabled={isConfirming}
-                          >
-                            {isConfirming ? 'Confirming...' : 'Confirm received'}
-                          </button>
-                        )}
-                        {canCancel && (
-                          <button
-                            type="button"
-                            className="recipient-dashboard__action-link recipient-dashboard__action-link--cancel"
-                            onClick={() => handleCancelRequest(request.requestId ?? request.id)}
-                            disabled={cancelingRequestId === (request.requestId ?? request.id)}
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        {waitingForDonor && (
-                          <span className="recipient-dashboard__action-note">
-                            Waiting for donor handover confirmation
-                          </span>
-                        )}
-                        {waitingForRecipient && (
-                          <span className="recipient-dashboard__action-note">
-                            Receipt already confirmed
-                          </span>
-                        )}
+                      <td data-label="Actions">
+                        <div className="recipient-dashboard__actions">
+                          {canView && (
+                            <button
+                              type="button"
+                              className="recipient-dashboard__action-link recipient-dashboard__action-link--view"
+                              onClick={() => handleViewListing(request.listingId)}
+                            >
+                              View Details
+                            </button>
+                          )}
+                          {canCancel && (
+                            <button
+                              type="button"
+                              className="recipient-dashboard__action-link recipient-dashboard__action-link--cancel"
+                              onClick={() => handleCancelRequest(request.requestId ?? request.id)}
+                              disabled={cancelingRequestId === (request.requestId ?? request.id)}
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td data-label="Receipt Confirmation">
+                        <div className="recipient-dashboard__confirmation-cell">
+                          {canConfirmReceived && (
+                            <button
+                              type="button"
+                              className="recipient-dashboard__action-link recipient-dashboard__action-link--confirm"
+                              onClick={() => handleConfirmReceived(request.requestId ?? request.id)}
+                              disabled={isConfirming}
+                            >
+                              {isConfirming ? 'Confirming...' : 'Confirm received'}
+                            </button>
+                          )}
+                          {waitingForDonor && (
+                            <span className="recipient-dashboard__action-note">
+                              Waiting for donor handover confirmation
+                            </span>
+                          )}
+                          {waitingForRecipient && (
+                            <span className="recipient-dashboard__action-note">
+                              Receipt already confirmed
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </article>
+
+      <article>
+        <h2 className="recipient-dashboard__section-title">Request History</h2>
+        <div className="recipient-dashboard__table-wrap">
+          {requestHistory.length === 0 ? (
+            <div className="recipient-dashboard__empty">
+              Past requests will appear here after they are completed, rejected, or canceled.
+            </div>
+          ) : (
+            <table className="recipient-dashboard__table">
+              <thead>
+                <tr>
+                  <th>Food Item</th>
+                  <th>Request Date</th>
+                  <th>Outcome Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                  <th>Receipt Confirmation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requestHistory.map((request) => {
+                  const status = String(request.status || '').toLowerCase()
+                  const canView = Boolean(request.listingId)
+                  const receiptText =
+                    status === 'completed'
+                      ? 'Received'
+                      : status === 'rejected'
+                        ? 'Not fulfilled'
+                        : 'Canceled'
+
+                  return (
+                    <tr key={request.requestId ?? request.id}>
+                      <td data-label="Food Item">{request.listingTitle || '—'}</td>
+                      <td data-label="Request Date">{formatDate(request.requestDate || request.requestedAt)}</td>
+                      <td data-label="Outcome Date">{formatDate(getHistoryDate(request))}</td>
+                      <td data-label="Status">
+                        <span className={getStatusClass(request.status)}>
+                          {request.status || 'Unknown'}
+                        </span>
+                      </td>
+                      <td data-label="Actions">
+                        <div className="recipient-dashboard__actions">
+                          {canView && (
+                            <button
+                              type="button"
+                              className="recipient-dashboard__action-link recipient-dashboard__action-link--view"
+                              onClick={() => handleViewListing(request.listingId)}
+                            >
+                              View Details
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td data-label="Receipt Confirmation">
+                        <div className="recipient-dashboard__confirmation-cell">
+                          <span className="recipient-dashboard__action-note">{receiptText}</span>
+                        </div>
                       </td>
                     </tr>
                   )

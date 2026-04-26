@@ -55,17 +55,26 @@ public class ReportService {
         }
 
         ReportType type = parseType(body.type());
+        ReportPolicyCategory policyCategory = parsePolicyCategory(body.policyCategory());
+        ReportSeverity severity = parseSeverity(body.severity());
+        LocalDateTime evidenceCapturedAt = LocalDateTime.now();
 
         Report report = new Report();
         report.setType(type);
         report.setStatus(ReportStatus.PENDING);
         report.setReason(sanitizeReason(body));
+        report.setPolicyCategory(policyCategory);
+        report.setSeverity(severity);
         report.setDetails(sanitizeDetails(body));
+        report.setEvidenceCapturedAt(evidenceCapturedAt);
         report.setReporter(reporter);
 
         if (type == ReportType.LISTING) {
             if (body.listingId() == null || body.requestId() != null) {
                 throw new BadRequestException("For LISTING reports, provide listingId and do not provide requestId");
+            }
+            if (body.reportedMessageId() != null) {
+                throw new BadRequestException("Listing reports cannot target a specific message");
             }
 
             FoodListing listing = foodListingRepository.findById(body.listingId())
@@ -78,7 +87,8 @@ public class ReportService {
 
             report.setListing(listing);
             report.setRequest(null);
-            report.setEvidenceSnapshot(buildListingSnapshot(listing));
+            report.setReportedMessageId(null);
+            report.setEvidenceSnapshot(buildListingSnapshot(listing, evidenceCapturedAt));
         } else {
             if (body.requestId() == null || body.listingId() != null) {
                 throw new BadRequestException("For REQUEST reports, provide requestId and do not provide listingId");
@@ -98,9 +108,11 @@ public class ReportService {
                 throw new BadRequestException("You already have a pending report for this request");
             }
 
+            Message reportedMessage = resolveReportedMessage(request, body.reportedMessageId(), reporter);
             report.setRequest(request);
             report.setListing(null);
-            report.setEvidenceSnapshot(buildRequestSnapshot(request));
+            report.setReportedMessageId(reportedMessage != null ? reportedMessage.getId() : null);
+            report.setEvidenceSnapshot(buildRequestSnapshot(request, evidenceCapturedAt, reportedMessage));
         }
 
         reportRepository.save(report);
@@ -114,6 +126,28 @@ public class ReportService {
             return ReportType.valueOf(rawType.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException("Invalid report type. Use LISTING or REQUEST");
+        }
+    }
+
+    private ReportPolicyCategory parsePolicyCategory(String rawCategory) {
+        if (rawCategory == null || rawCategory.isBlank()) {
+            return ReportPolicyCategory.OTHER;
+        }
+        try {
+            return ReportPolicyCategory.valueOf(rawCategory.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new BadRequestException("Invalid policy category");
+        }
+    }
+
+    private ReportSeverity parseSeverity(String rawSeverity) {
+        if (rawSeverity == null || rawSeverity.isBlank()) {
+            return ReportSeverity.MEDIUM;
+        }
+        try {
+            return ReportSeverity.valueOf(rawSeverity.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new BadRequestException("Invalid report severity");
         }
     }
 
@@ -142,21 +176,41 @@ public class ReportService {
                 .orElseThrow(() -> new NotFoundException("Authenticated user not found"));
     }
 
-    private String buildListingSnapshot(FoodListing listing) {
+    private Message resolveReportedMessage(ListingRequest request, java.util.UUID reportedMessageId, User reporter) {
+        if (reportedMessageId == null) {
+            return null;
+        }
+
+        Message message = messageRepository.findById(reportedMessageId)
+                .orElseThrow(() -> new NotFoundException("Reported message not found"));
+
+        if (message.getRequest() == null || !request.getId().equals(message.getRequest().getId())) {
+            throw new BadRequestException("Reported message does not belong to this request");
+        }
+        if (message.getSender() != null && reporter.getId().equals(message.getSender().getId())) {
+            throw new BadRequestException("You cannot report your own message");
+        }
+
+        return message;
+    }
+
+    private String buildListingSnapshot(FoodListing listing, LocalDateTime capturedAt) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("kind", ReportType.LISTING.name());
-        snapshot.put("capturedAt", LocalDateTime.now());
+        snapshot.put("capturedAt", capturedAt);
         snapshot.put("listing", buildListingMap(listing));
         snapshot.put("donor", buildUserMap(listing.getDonor()));
         return serializeSnapshot(snapshot);
     }
 
-    private String buildRequestSnapshot(ListingRequest request) {
+    private String buildRequestSnapshot(ListingRequest request, LocalDateTime capturedAt, Message reportedMessage) {
         List<Message> messages = messageRepository.findByRequestIdOrderByTimestampAsc(request.getId());
 
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("kind", ReportType.REQUEST.name());
-        snapshot.put("capturedAt", LocalDateTime.now());
+        snapshot.put("capturedAt", capturedAt);
+        snapshot.put("reportedMessageId", reportedMessage != null ? reportedMessage.getId() : null);
+        snapshot.put("reportedMessageExcerpt", reportedMessage != null ? reportedMessage.getContent() : null);
         snapshot.put("request", buildRequestMap(request));
         snapshot.put("listing", buildListingMap(request.getListing()));
         snapshot.put("donor", buildUserMap(request.getListing().getDonor()));
@@ -201,6 +255,7 @@ public class ReportService {
         map.put("email", user.getEmail());
         map.put("role", user.getRole() != null ? user.getRole().name() : null);
         map.put("organisationName", user.getOrganisationName());
+        map.put("status", user.getStatus() != null ? user.getStatus().name() : null);
         return map;
     }
 
@@ -209,6 +264,7 @@ public class ReportService {
         map.put("id", message.getId());
         map.put("content", message.getContent());
         map.put("timestamp", message.getTimestamp());
+        map.put("senderId", message.getSender().getId());
         map.put("senderUsername", message.getSender().getUsername());
         map.put("senderRole", message.getSender().getRole().name());
         return map;

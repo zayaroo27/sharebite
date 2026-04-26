@@ -9,6 +9,57 @@ import Button from '../components/Button.jsx'
 import ReportModal from '../components/ReportModal.jsx'
 import '../styles/listing-details.css'
 
+function parseLocalDate(value) {
+  if (!value || typeof value !== 'string') return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function getExpiryMeta(raw) {
+  const date = parseLocalDate(raw)
+  if (!date) {
+    return { label: raw || '', className: '' }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  date.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000)
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+
+  if (diffDays < 0) {
+    return {
+      label: `Expired ${formattedDate}`,
+      className: 'listing-details__meta-item--expired',
+    }
+  }
+
+  if (diffDays === 0) {
+    return {
+      label: 'Expires today',
+      className: 'listing-details__meta-item--warning',
+    }
+  }
+
+  if (diffDays <= 7) {
+    return {
+      label: `Expires in ${diffDays} day${diffDays === 1 ? '' : 's'}`,
+      className: 'listing-details__meta-item--warning',
+    }
+  }
+
+  return {
+    label: `Expires ${formattedDate}`,
+    className: '',
+  }
+}
+
 function ListingDetailsPage() {
   const { id } = useParams()
   const [listing, setListing] = useState(null)
@@ -46,11 +97,11 @@ function ListingDetailsPage() {
     }
   }
 
-  const handleSubmitReport = async ({ reason, details }) => {
+  const handleSubmitReport = async ({ reason, details, policyCategory, severity }) => {
     setReportSubmitting(true)
     setReportError('')
     try {
-      await reportListing(id, reason, details)
+      await reportListing(id, { reason, details, policyCategory, severity })
       setReportFeedback('Your listing report has been submitted for admin review.')
       setReportModalOpen(false)
     } catch (err) {
@@ -112,6 +163,7 @@ function ListingDetailsPage() {
   const donorPrimaryName = donorDisplayName || donorUsername || donorName || 'ShareBite donor'
   const donorSecondaryName = donorDisplayName && donorUsername ? `@${donorUsername}` : ''
   const listingStatusLabel = getStatusLabel(status)
+  const expiryMeta = getExpiryMeta(expiryDate)
   const memberSince = formatDate(donorCreatedAt, {
     month: 'long',
     year: 'numeric',
@@ -159,13 +211,9 @@ function ListingDetailsPage() {
                   </span>
                 )}
                 {expiryDate && (
-                  <span className="listing-details__meta-item">
+                  <span className={`listing-details__meta-item ${expiryMeta.className}`.trim()}>
                     <span className="listing-details__meta-icon" aria-hidden="true">⏰</span>
-                    <span>Use by {formatDate(expiryDate, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}</span>
+                    <span>{expiryMeta.label}</span>
                   </span>
                 )}
               </div>
@@ -215,37 +263,6 @@ function ListingDetailsPage() {
             </article>
           )}
 
-          <article className="card listing-details__secondary-card listing-details__report-card">
-            <h2 className="listing-details__section-title">Need to report this listing?</h2>
-            <p className="listing-details__helper">
-              If this listing looks misleading, unsafe, abusive, or otherwise inappropriate,
-              you can send a report for admin review.
-            </p>
-            {canReportListing ? (
-              <Button
-                type="button"
-                variant="danger"
-                className="listing-details__request-btn"
-                onClick={() => {
-                  setReportError('')
-                  setReportFeedback('')
-                  setReportModalOpen(true)
-                }}
-              >
-                Report listing
-              </Button>
-            ) : isAuthenticated ? (
-              <p className="listing-details__helper">
-                Admins review reports from the dashboard instead of filing listing reports.
-              </p>
-            ) : (
-              <p className="listing-details__helper">
-                <Link to="/login">Log in</Link> to report this listing.
-              </p>
-            )}
-            {reportFeedback && <p className="form-helper listing-details__feedback">{reportFeedback}</p>}
-          </article>
-
           <article className="card listing-details__secondary-card listing-details__request-card">
             <h2 className="listing-details__section-title">Request this listing</h2>
             <p className="listing-details__helper">
@@ -275,6 +292,37 @@ function ListingDetailsPage() {
                 listing.
               </p>
             )}
+          </article>
+
+          <article className="card listing-details__secondary-card listing-details__report-card">
+            <h2 className="listing-details__section-title">Need to report this listing?</h2>
+            <p className="listing-details__helper">
+              If this listing looks misleading, unsafe, abusive, or otherwise inappropriate,
+              you can send a report for admin review.
+            </p>
+            {canReportListing ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="listing-details__report-btn"
+                onClick={() => {
+                  setReportError('')
+                  setReportFeedback('')
+                  setReportModalOpen(true)
+                }}
+              >
+                Report listing
+              </Button>
+            ) : isAuthenticated ? (
+              <p className="listing-details__helper">
+                Admins review reports from the dashboard instead of filing listing reports.
+              </p>
+            ) : (
+              <p className="listing-details__helper">
+                <Link to="/login">Log in</Link> to report this listing.
+              </p>
+            )}
+            {reportFeedback && <p className="form-helper listing-details__feedback">{reportFeedback}</p>}
           </article>
         </div>
       </div>

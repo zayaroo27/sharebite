@@ -70,7 +70,7 @@ class AuthServiceImplTest {
         RegisterRequest request = new RegisterRequest(
                 "donor_user",
                 "donor@example.com",
-                "donor2026",
+                "Donor2026!",
                 Role.DONOR
         );
 
@@ -93,7 +93,7 @@ class AuthServiceImplTest {
         RegisterRequest request = new RegisterRequest(
                 "recipient_user",
                 "recipient@example.com",
-                "password",
+                "Password1",
                 Role.RECIPIENT
         );
 
@@ -106,7 +106,7 @@ class AuthServiceImplTest {
         );
 
         assertEquals(
-                "Password must be at least 8 characters long and include at least one letter and one number.",
+                "Password must be at least 8 characters long and include at least one uppercase letter, one number, and one special character.",
                 exception.getMessage()
         );
         verify(passwordEncoder, never()).encode(anyString());

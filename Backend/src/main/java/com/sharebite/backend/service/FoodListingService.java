@@ -116,6 +116,9 @@ public class FoodListingService {
     public FoodListingResponse getPublicListingById(UUID listingId) {
         FoodListing listing = foodListingRepository.findById(listingId)
                 .orElseThrow(() -> new NotFoundException("Listing not found"));
+        if (listing.getRemovedByModerationAt() != null) {
+            throw new NotFoundException("Listing not found");
+        }
         return mapToResponse(listing);
     }
 
@@ -133,6 +136,9 @@ public class FoodListingService {
 
         if (!listing.getDonor().getId().equals(currentUser.getId())) {
             throw new ForbiddenException("You can only modify your own listings");
+        }
+        if (listing.getRemovedByModerationAt() != null) {
+            throw new BadRequestException("This listing was removed by moderation and can no longer be edited");
         }
 
         // Validate
@@ -171,6 +177,9 @@ public class FoodListingService {
         if (!listing.getDonor().getId().equals(currentUser.getId())) {
             throw new ForbiddenException("You can only upload images to your own listings");
         }
+        if (listing.getRemovedByModerationAt() != null) {
+            throw new BadRequestException("This listing was removed by moderation and can no longer be updated");
+        }
 
         String imageUrl = fileStorageService.storeFile(file);
         listing.setImageUrl(imageUrl);
@@ -186,6 +195,9 @@ public class FoodListingService {
 
         if (!listing.getDonor().getId().equals(currentUser.getId())) {
             throw new ForbiddenException("You can only delete your own listings");
+        }
+        if (listing.getRemovedByModerationAt() != null) {
+            throw new BadRequestException("This listing was removed by moderation and can no longer be deleted by the donor");
         }
 
         boolean hasListingReports = !reportRepository.findByListingId(listingId).isEmpty();

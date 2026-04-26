@@ -250,3 +250,18 @@ tbody tr:hover {
   background-color: rgba(46, 125, 50, 0.04);
 }
 
+@media (max-width: 640px) {
+  .card {
+    padding: var(--sb-space-4);
+  }
+
+  .card__title {
+    font-size: 1.3rem;
+  }
+
+  .form-input,
+  .form-textarea,
+  .form-select {
+    font-size: 16px;
+  }
+}

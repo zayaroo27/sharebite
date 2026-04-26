@@ -58,12 +58,11 @@ function ListingForm({
         placeholder="Fresh cooked rice"
         error={errors.title}
         required
+        showRequiredMark={false}
       />
 
       <div className="form-field">
-        <label className="form-label" htmlFor="description">
-          Description <span aria-hidden="true">*</span>
-        </label>
+        <label className="form-label" htmlFor="description">Description</label>
         <textarea
           id="description"
           name="description"
@@ -87,12 +86,11 @@ function ListingForm({
           placeholder="10 meal boxes"
           error={errors.quantity}
           required
+          showRequiredMark={false}
         />
 
         <div className="form-field">
-          <label className="form-label" htmlFor="location">
-            Pickup location <span aria-hidden="true">*</span>
-          </label>
+          <label className="form-label" htmlFor="location">Pickup location</label>
           <input
             id="location"
             name="location"
@@ -139,6 +137,7 @@ function ListingForm({
           onChange={onChange}
           error={errors.expiryDate}
           required
+          showRequiredMark={false}
         />
 
         <div className="form-field">

@@ -1,6 +1,7 @@
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/ReportServiceTest.java
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/ListingRequestServiceTest.java
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/FileStorageServiceTest.java
+/home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/AdminServiceTest.java
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/FoodListingServiceTest.java
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/AuthServiceImplTest.java
 /home/kygo/Sharebite/Backend/src/test/java/com/sharebite/backend/service/MessageServiceTest.java

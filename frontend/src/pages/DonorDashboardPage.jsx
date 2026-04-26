@@ -139,30 +139,29 @@ function DonorDashboardPage() {
   const hasDonorConfirmedCompletion = (request) => Boolean(request?.donorCompletedAt)
   const hasRecipientConfirmedCompletion = (request) => Boolean(request?.recipientCompletedAt)
 
-  const summary = useMemo(() => {
-    const totalDonations = listings.length
-
-    const totalQuantity = listings.reduce((sum, listing) => {
-      const parsed = Number.parseFloat(String(listing.quantity ?? '').replace(/[^0-9.]/g, ''))
-      return Number.isFinite(parsed) ? sum + parsed : sum
-    }, 0)
-
-    const ngosHelped = new Set(
-      requests
-        .map((request) => request.recipientName)
-        .filter(Boolean),
-    ).size
-
-    return {
-      totalDonations,
-      totalQuantity,
-      ngosHelped,
-    }
-  }, [listings, requests])
-
   const pendingRequests = useMemo(
     () => requests.filter((request) => String(request.status || '').toUpperCase() === 'PENDING'),
     [requests],
+  )
+
+  const completedRequests = useMemo(
+    () => requests
+      .filter((request) => String(request.status || '').toUpperCase() === 'COMPLETED')
+      .sort((left, right) => {
+        const leftDate = new Date(
+          left.completedDate || left.recipientCompletedAt || left.donorCompletedAt || left.decisionDate || left.requestDate || 0,
+        ).getTime()
+        const rightDate = new Date(
+          right.completedDate || right.recipientCompletedAt || right.donorCompletedAt || right.decisionDate || right.requestDate || 0,
+        ).getTime()
+        return rightDate - leftDate
+      }),
+    [requests],
+  )
+
+  const activeListings = useMemo(
+    () => listings.filter((listing) => String(listing.status || '').toUpperCase() !== 'COMPLETED'),
+    [listings],
   )
 
   const approvedRequests = useMemo(
@@ -209,15 +208,17 @@ function DonorDashboardPage() {
 
       <article>
         <h2 className="donor-dashboard__section-title">My Listings</h2>
-        {listings.length === 0 ? (
+        {activeListings.length === 0 ? (
           <div className="card">
             <p className="donor-dashboard__subtitle">
-              You have no active listings yet. Create your first listing to start sharing food.
+              {listings.length === 0
+                ? 'You have no active listings yet. Create your first listing to start sharing food.'
+                : 'You have no active listings right now. Completed donations are available below in your history.'}
             </p>
           </div>
         ) : (
           <div className="donor-dashboard__listing-grid">
-            {listings.map((listing) => (
+            {activeListings.map((listing) => (
               <article key={listing.id} className="card donor-listing-card">
                 <div className="donor-listing-card__image-wrap">
                   <img
@@ -246,7 +247,7 @@ function DonorDashboardPage() {
                   </div>
                   <div className="donor-listing-card__actions">
                     <Button variant="outline" className="donor-listing-card__edit-btn" onClick={() => handleEdit(listing)}>Edit</Button>
-                    <Button variant="outline" className="donor-listing-card__delete-btn" onClick={() => handleDelete(listing.id)}>Delete</Button>
+                    <Button variant="danger" className="donor-listing-card__delete-btn" onClick={() => handleDelete(listing.id)}>Delete</Button>
                   </div>
                 </div>
               </article>
@@ -263,7 +264,7 @@ function DonorDashboardPage() {
               No approved requests are waiting for completion right now.
             </p>
           ) : (
-            <div className="donor-dashboard__requests-list">
+            <div className="donor-dashboard__requests-list donor-dashboard__requests-list--scrollable">
               {approvedRequests.map((request) => {
                 const requestId = request.requestId ?? request.id
                 const isProcessing = requestActionId === requestId
@@ -327,7 +328,7 @@ function DonorDashboardPage() {
                 : 'You have no pending requests right now.'}
             </p>
           ) : (
-            <div className="donor-dashboard__requests-list">
+            <div className="donor-dashboard__requests-list donor-dashboard__requests-list--scrollable">
               {visibleRequests.map((request) => {
                 const requestId = request.requestId ?? request.id
                 const isProcessing = requestActionId === requestId
@@ -355,7 +356,7 @@ function DonorDashboardPage() {
                           {isProcessing ? 'Updating...' : '✓ Approve'}
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="danger"
                           className="donor-dashboard__reject-btn"
                           onClick={() => handleReject(requestId)}
                           disabled={isProcessing}
@@ -373,29 +374,30 @@ function DonorDashboardPage() {
       </article>
 
       <article>
-        <h2 className="donor-dashboard__section-title">Completed Donations</h2>
-        <div className="donor-dashboard__summary-grid">
-          <div className="card donor-dashboard__summary-card">
-            <div className="donor-dashboard__summary-icon">📦</div>
-            <div>
-              <div className="donor-dashboard__summary-value">{summary.totalDonations}</div>
-              <div className="donor-dashboard__summary-label">Total Donations</div>
+        <h2 className="donor-dashboard__section-title">Donation History</h2>
+        <div className="card donor-dashboard__requests-card">
+          {completedRequests.length === 0 ? (
+            <p className="donor-dashboard__subtitle">
+              Completed donations will appear here once both donor and recipient confirmations are finished.
+            </p>
+          ) : (
+            <div className="donor-dashboard__requests-list donor-dashboard__requests-list--scrollable donor-dashboard__requests-list--history">
+              {completedRequests.map((request) => (
+                <div key={request.requestId ?? request.id} className="donor-dashboard__request-row donor-dashboard__request-row--history">
+                  <div className="donor-dashboard__request-main">
+                    <h3 className="donor-dashboard__request-title">{request.listingTitle}</h3>
+                    <div className="donor-dashboard__request-meta">
+                      {request.recipientName && <span>Completed for: {request.recipientName}</span>}
+                      <span>Finished on: {formatDate(request.completedDate || request.recipientCompletedAt || request.donorCompletedAt)}</span>
+                      <span className="donor-dashboard__request-status donor-dashboard__request-status--completed">
+                        completed
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-          <div className="card donor-dashboard__summary-card">
-            <div className="donor-dashboard__summary-icon">🧡</div>
-            <div>
-              <div className="donor-dashboard__summary-value">{summary.totalQuantity || 0} kg</div>
-              <div className="donor-dashboard__summary-label">Food Donated</div>
-            </div>
-          </div>
-          <div className="card donor-dashboard__summary-card">
-            <div className="donor-dashboard__summary-icon">✅</div>
-            <div>
-              <div className="donor-dashboard__summary-value">{summary.ngosHelped}</div>
-              <div className="donor-dashboard__summary-label">NGOs Helped</div>
-            </div>
-          </div>
+          )}
         </div>
       </article>
     </section>

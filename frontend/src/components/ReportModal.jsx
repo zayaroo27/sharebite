@@ -1,12 +1,31 @@
 import { useEffect, useState } from 'react'
 import Button from './Button.jsx'
+import SelectInput from './SelectInput.jsx'
 import '../styles/report-modal.css'
+
+const POLICY_OPTIONS = [
+  { value: 'OTHER', label: 'Other concern' },
+  { value: 'MISLEADING_LISTING', label: 'Misleading listing' },
+  { value: 'SAFETY_RISK', label: 'Safety risk' },
+  { value: 'ABUSE', label: 'Abuse' },
+  { value: 'HARASSMENT', label: 'Harassment' },
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'SCAM_FRAUD', label: 'Scam or fraud' },
+]
+
+const SEVERITY_OPTIONS = [
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'CRITICAL', label: 'Critical' },
+]
 
 function ReportModal({
   isOpen,
   title,
   subtitle,
   targetLabel,
+  reportedMessage = null,
   submitting = false,
   submitError = '',
   onClose,
@@ -14,12 +33,16 @@ function ReportModal({
 }) {
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
+  const [policyCategory, setPolicyCategory] = useState('OTHER')
+  const [severity, setSeverity] = useState('MEDIUM')
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (!isOpen) {
       setReason('')
       setDetails('')
+      setPolicyCategory('OTHER')
+      setSeverity('MEDIUM')
       setErrors({})
     }
   }, [isOpen])
@@ -40,6 +63,8 @@ function ReportModal({
     await onSubmit({
       reason: reason.trim(),
       details: details.trim(),
+      policyCategory,
+      severity,
     })
   }
 
@@ -75,7 +100,38 @@ function ReportModal({
           </div>
         )}
 
+        {reportedMessage && (
+          <div className="report-modal__target report-modal__target--message">
+            <span className="report-modal__target-label">Reported message</span>
+            <strong>{reportedMessage.senderUsername || 'Unknown sender'}</strong>
+            <p>{reportedMessage.content || 'No message text available.'}</p>
+            {reportedMessage.timestamp && <time>{new Date(reportedMessage.timestamp).toLocaleString()}</time>}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="report-modal__form">
+          <SelectInput
+            id="report-policy-category"
+            label="Policy category"
+            value={policyCategory}
+            onChange={(event) => setPolicyCategory(event.target.value)}
+            options={POLICY_OPTIONS}
+            helperText="Classify the type of issue so admins can triage it faster."
+            disabled={submitting}
+            required
+          />
+
+          <SelectInput
+            id="report-severity"
+            label="Severity"
+            value={severity}
+            onChange={(event) => setSeverity(event.target.value)}
+            options={SEVERITY_OPTIONS}
+            helperText="Describe how urgent or harmful this issue appears to be."
+            disabled={submitting}
+            required
+          />
+
           <div className="form-field">
             <label className="form-label" htmlFor="report-reason">
               Reason <span aria-hidden="true">*</span>
@@ -106,7 +162,7 @@ function ReportModal({
               disabled={submitting}
             />
             <p className="form-helper">
-              Include context, timestamps, or why this breaks platform rules.
+              Include context, timestamps, and why this breaks ShareBite rules.
             </p>
           </div>
 

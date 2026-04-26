@@ -42,6 +42,7 @@
 
 .recipient-dashboard__table {
   width: 100%;
+  min-width: 48rem;
   border-collapse: collapse;
   font-size: 0.95rem;
 }
@@ -115,6 +116,20 @@
   font-weight: 600;
 }
 
+.recipient-dashboard__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0.55rem;
+}
+
+.recipient-dashboard__confirmation-cell {
+  display: flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
 .recipient-dashboard__action-link--view {
   border: none;
   background: transparent;
@@ -153,6 +168,11 @@
   display: inline-block;
   font-size: 0.82rem;
   color: #7a8391;
+  line-height: 1.35;
+}
+
+.recipient-dashboard__confirmation-cell .recipient-dashboard__action-note {
+  white-space: nowrap;
 }
 
 .recipient-dashboard__section-row {
@@ -283,6 +303,11 @@
 }
 
 @media (max-width: 640px) {
+  .recipient-dashboard__page-title,
+  .recipient-dashboard__section-title {
+    font-size: 1.55rem;
+  }
+
   .recipient-dashboard__cards-grid {
     grid-template-columns: 1fr;
   }
@@ -290,5 +315,65 @@
   .recipient-dashboard__section-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .recipient-dashboard__table th,
+  .recipient-dashboard__table td {
+    padding: 0.7rem 0.8rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .recipient-dashboard__table {
+    min-width: 0;
+  }
+
+  .recipient-dashboard__table thead {
+    display: none;
+  }
+
+  .recipient-dashboard__table,
+  .recipient-dashboard__table tbody,
+  .recipient-dashboard__table tr,
+  .recipient-dashboard__table td {
+    display: block;
+    width: 100%;
+  }
+
+  .recipient-dashboard__table tr {
+    padding: 0.95rem 1rem;
+    border-bottom: 1px solid #e3e7eb;
+    background: #ffffff;
+  }
+
+  .recipient-dashboard__table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .recipient-dashboard__table td {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, 42%) minmax(0, 1fr);
+    gap: 0.7rem;
+    align-items: start;
+    padding: 0.38rem 0;
+    border-bottom: none;
+  }
+
+  .recipient-dashboard__table td::before {
+    content: attr(data-label);
+    font-size: 0.73rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #7a8391;
+  }
+
+  .recipient-dashboard__actions,
+  .recipient-dashboard__confirmation-cell {
+    justify-content: flex-start;
+  }
+
+  .recipient-dashboard__confirmation-cell .recipient-dashboard__action-note {
+    white-space: normal;
   }
 }

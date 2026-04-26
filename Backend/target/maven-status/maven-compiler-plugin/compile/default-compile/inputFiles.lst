@@ -1,7 +1,9 @@
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/AuthService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AdminReportResponse.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ReportSeverity.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/security/JwtUtil.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/MessageController.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ModerationActionType.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ReportType.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/FoodListingController.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AdminReportDetailResponse.java
@@ -10,9 +12,11 @@
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/CategoryController.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/ReportService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AdminStatsResponse.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/AdminReportReviewRequest.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/FoodListingService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/FoodListingResponse.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/repository/FoodListingRepository.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ModerationActionTargetType.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/exception/BadRequestException.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/PublicUserProfileResponse.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/controller/ListingRequestController.java
@@ -57,6 +61,7 @@
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/exception/ForbiddenException.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/ListingRequestCreateResponse.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/dto/NotificationResponse.java
+/home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ReportPolicyCategory.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/service/FileStorageService.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/RequestStatus.java
 /home/kygo/Sharebite/Backend/src/main/java/com/sharebite/backend/entity/ReportStatus.java

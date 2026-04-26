@@ -24,9 +24,9 @@ import java.util.regex.Pattern;
 public class AuthServiceImpl implements AuthService {
 
     private static final String PASSWORD_POLICY_MESSAGE =
-            "Password must be at least 8 characters long and include at least one letter and one number.";
+            "Password must be at least 8 characters long and include at least one uppercase letter, one number, and one special character.";
     private static final Pattern PASSWORD_POLICY_PATTERN =
-            Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d).{8,}$");
+            Pattern.compile("^(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}$");
 
     @Autowired
     private UserRepository userRepository;
