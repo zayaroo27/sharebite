@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   fetchAdminDashboard,
   fetchAdminReport,
+  fetchAdminUsers,
+  fetchAdminStats,
   suspendUser,
   reactivateUser,
   createCategory,
@@ -720,14 +722,23 @@ function AdminDashboardPage() {
     })
   }, [users, userSearch])
 
+  const refreshUsersAndStats = async () => {
+    try {
+      const [latestUsers, latestStats] = await Promise.all([
+        fetchAdminUsers(),
+        fetchAdminStats(),
+      ])
+      setUsers(latestUsers ?? [])
+      setStats(latestStats ?? null)
+    } catch {
+      setDashboardWarning((prev) => prev || 'Some dashboard values may be stale. Refresh if needed.')
+    }
+  }
+
   const handleSuspend = async (userId) => {
     try {
       await suspendUser(userId)
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === userId ? { ...user, status: 'SUSPENDED' } : user,
-        ),
-      )
+      await refreshUsersAndStats()
     } catch {
       alert('Unable to suspend this user right now.')
     }
@@ -736,11 +747,7 @@ function AdminDashboardPage() {
   const handleReactivate = async (userId) => {
     try {
       await reactivateUser(userId)
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === userId ? { ...user, status: 'ACTIVE' } : user,
-        ),
-      )
+      await refreshUsersAndStats()
     } catch {
       alert('Unable to reactivate this user right now.')
     }
@@ -797,6 +804,7 @@ function AdminDashboardPage() {
       setReports((prev) =>
         prev.map((report) => (report.id === reportId ? { ...report, ...updated } : report)),
       )
+      await refreshUsersAndStats()
       await loadReportDetail(reportId)
       setReportTab('HISTORY')
     } catch (err) {
@@ -820,6 +828,7 @@ function AdminDashboardPage() {
       setReports((prev) =>
         prev.map((report) => (report.id === reportId ? { ...report, ...updated } : report)),
       )
+      await refreshUsersAndStats()
       await loadReportDetail(reportId)
       setReportTab('HISTORY')
     } catch (err) {

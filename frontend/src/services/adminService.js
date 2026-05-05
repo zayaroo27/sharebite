@@ -35,6 +35,16 @@ export async function fetchAdminReport(reportId) {
   return response.data
 }
 
+export async function fetchAdminUsers() {
+  const response = await api.get('/admin/users')
+  return response.data ?? []
+}
+
+export async function fetchAdminStats() {
+  const response = await api.get('/admin/stats')
+  return response.data ?? null
+}
+
 export async function suspendUser(userId) {
   const response = await api.patch(`/admin/users/${userId}/suspend`)
   return response.data

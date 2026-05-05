@@ -27,13 +27,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class AdminService {
+
+    private static final Set<Role> DASHBOARD_USER_ROLES = EnumSet.of(Role.DONOR, Role.RECIPIENT);
 
     @Autowired
     private UserRepository userRepository;
@@ -64,13 +68,19 @@ public class AdminService {
 
     public List<AdminUserResponse> getAllUsers() {
         List<User> users = userRepository.findAll();
-        return users.stream().map(this::mapToAdminUserResponse).collect(Collectors.toList());
+        return users.stream()
+                .filter(this::isDashboardUser)
+                .map(this::mapToAdminUserResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional
     public AdminUserResponse suspendUser(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be suspended from the users dashboard");
+        }
         user.setStatus(AccountStatus.SUSPENDED);
         User saved = userRepository.save(user);
         return mapToAdminUserResponse(saved);
@@ -80,6 +90,9 @@ public class AdminService {
     public AdminUserResponse activateUser(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be managed from the users dashboard");
+        }
         user.setStatus(AccountStatus.ACTIVE);
         User saved = userRepository.save(user);
         return mapToAdminUserResponse(saved);
@@ -102,8 +115,14 @@ public class AdminService {
     }
 
     public AdminStatsResponse getStats() {
-        long totalUsers = userRepository.count();
-        long activeUsers = userRepository.countByStatus(AccountStatus.ACTIVE);
+        List<User> dashboardUsers = userRepository.findAll().stream()
+            .filter(this::isDashboardUser)
+            .toList();
+
+        long totalUsers = dashboardUsers.size();
+        long activeUsers = dashboardUsers.stream()
+            .filter(user -> user.getStatus() == AccountStatus.ACTIVE)
+            .count();
         long totalListings = foodListingRepository.count();
         long availableListings = foodListingRepository.countByStatus(ListingStatus.AVAILABLE);
         long expiredListings = foodListingRepository.countByStatus(ListingStatus.EXPIRED);
@@ -127,6 +146,10 @@ public class AdminService {
                 totalCategories,
                 totalNotifications
         );
+    }
+
+    private boolean isDashboardUser(User user) {
+        return DASHBOARD_USER_ROLES.contains(user.getRole());
     }
 
     @Transactional(readOnly = true)
